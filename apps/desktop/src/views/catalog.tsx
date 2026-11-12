@@ -1,70 +1,12 @@
-'use client';
+import { FormEvent, useState } from 'react';
+import { useCatalogDetail, useCatalogList } from '../controllers/use-catalog';
+import { errorText, useRemote } from '../controllers/use-remote';
+import { Page, RecordItem, RequestApi, Role } from '../models/api';
+import { Kind } from '../models/catalog';
+import { catalogs, childGroups, Field } from './catalog-config';
 
-import { FormEvent, useEffect, useState } from 'react';
-import { Page, RecordItem, RequestApi, Role } from './api';
-
-type Option = [value: string, label: string];
-type Field = { key: string; label: string; type?: 'text' | 'date' | 'number' | 'password' | 'area'; options?: Option[]; source?: Kind; required?: boolean };
-const field = (key: string, label: string, required = false): Field => ({ key, label, required });
-export const roleNames: Record<Role, string> = { admin: 'Quản trị', leader: 'Lãnh đạo', specialist: 'Chuyên viên' };
-const serviceTypes: Option[] = [['ordered', 'Đặt hàng'], ['monitoring', 'Giám sát'], ['operations', 'Quản trị vận hành']];
-const codeName = [field('code', 'Mã', true), field('name', 'Tên', true), { key: 'description', label: 'Mô tả', type: 'area' } satisfies Field];
-const ownership: Field[] = [
-  { key: 'organizationId', label: 'Đơn vị', source: 'organizations', required: true },
-  { key: 'ownerId', label: 'Người phụ trách', source: 'users' },
-  { key: 'status', label: 'Trạng thái', options: [['active', 'Đang hoạt động'], ['inactive', 'Ngừng hoạt động']] },
-];
-export type Kind = 'applications' | 'servers' | 'domains' | 'databases' | 'organizations' | 'data-centers' | 'users';
-export const catalogs: Record<Kind, { title: string; fields: Field[] }> = {
-  applications: { title: 'Ứng dụng', fields: [...codeName, ...ownership, { key: 'serviceType', label: 'Hình thức dịch vụ', options: serviceTypes, required: true }] },
-  servers: { title: 'Máy chủ', fields: [field('code', 'Mã', true), field('hostname', 'Hostname', true),
-    { key: 'dataCenterId', label: 'Trung tâm dữ liệu', source: 'data-centers', required: true },
-    field('operatingSystem', 'Hệ điều hành'), { key: 'configuration', label: 'Cấu hình', type: 'area' }, { key: 'notes', label: 'Ghi chú', type: 'area' }] },
-  domains: { title: 'Tên miền', fields: [field('name', 'Tên miền', true), { key: 'renewalDate', label: 'Hạn gia hạn', type: 'date' }] },
-  databases: { title: 'Cơ sở dữ liệu', fields: [...codeName, ...ownership, field('engine', 'Hệ quản trị CSDL', true)] },
-  organizations: { title: 'Đơn vị', fields: codeName },
-  'data-centers': { title: 'Trung tâm dữ liệu', fields: codeName },
-  users: { title: 'Tài khoản', fields: [field('username', 'Tên đăng nhập', true), field('displayName', 'Họ và tên', true),
-    { key: 'role', label: 'Vai trò', options: Object.entries(roleNames), required: true },
-    { key: 'status', label: 'Trạng thái', options: [['active', 'Hoạt động'], ['locked', 'Đã khóa']] },
-    { key: 'password', label: 'Mật khẩu', type: 'password' }] },
-};
-
-const childGroups: Partial<Record<Kind, { path: string; key: string; title: string; fields: Field[] }[]>> = {
-  servers: [
-    { path: 'addresses', key: 'addresses', title: 'Địa chỉ IP', fields: [field('address', 'Địa chỉ', true), field('networkScope', 'Phạm vi mạng', true),
-      { key: 'kind', label: 'Loại', options: [['private', 'Nội bộ'], ['public', 'Công khai'], ['nat', 'NAT']], required: true }] },
-    { path: 'access-endpoints', key: 'accessEndpoints', title: 'Điểm truy cập', fields: [
-      { key: 'protocol', label: 'Giao thức', options: [['ssh', 'SSH'], ['rdp', 'RDP']], required: true }, field('host', 'Host', true),
-      { key: 'port', label: 'Cổng', type: 'number', required: true }] },
-  ],
-  domains: [
-    { path: 'dns-records', key: 'dnsRecords', title: 'Bản ghi DNS', fields: [field('host', 'Host', true),
-      { key: 'type', label: 'Loại', options: ['A', 'AAAA', 'CNAME', 'NS', 'PTR', 'MX', 'TXT', 'SRV', 'CAA'].map((value) => [value, value]), required: true },
-      field('target', 'Đích', true)] },
-    { path: 'tls-endpoints', key: 'tlsEndpoints', title: 'Điểm TLS', fields: [field('host', 'Host', true),
-      { key: 'port', label: 'Cổng', type: 'number', required: true }, field('sni', 'SNI'), { key: 'manualExpiryDate', label: 'Hạn nhập tay', type: 'date' }] },
-  ],
-};
-
-export const itemTitle = (row: RecordItem) => String(row.name ?? row.hostname ?? row.displayName ?? row.username ?? row.id);
+const itemTitle = (row: RecordItem) => String(row.name ?? row.hostname ?? row.displayName ?? row.username ?? row.id);
 const asIds = (value: unknown) => Array.isArray(value) ? value as string[] : [];
-const errorText = (error: unknown) => error instanceof Error ? error.message : 'Thao tác không thành công.';
-
-export function useRemote<T>(api: RequestApi, path: string, revision = 0) {
-  const [result, setResult] = useState<{ path: string; revision: number; data?: T; error?: string }>();
-  useEffect(() => {
-    if (!path) return;
-    const controller = new AbortController();
-    void api<T>(path, { signal: controller.signal }).then((data) => {
-      if (!controller.signal.aborted) setResult({ path, revision, data });
-    }).catch((error) => {
-      if (!controller.signal.aborted) setResult({ path, revision, error: errorText(error) });
-    });
-    return () => controller.abort();
-  }, [api, path, revision]);
-  return result?.path === path && result.revision === revision ? result : undefined;
-}
 
 export function Pager({ page, pageSize, total, change }: { page: number; pageSize: number; total: number; change: (page: number) => void }) {
   const last = Math.max(1, Math.ceil(total / pageSize));
@@ -133,17 +75,15 @@ function ResourceName({ api, kind, id, open }: { api: RequestApi; kind: Kind; id
 }
 
 export function Catalog({ kind, api, role, open }: { kind: Kind; api: RequestApi; role: Role; open: (kind: Kind, id: string) => void }) {
-  const [page, setPage] = useState(1);
   const [creating, setCreating] = useState(false);
-  const [revision, setRevision] = useState(0);
-  const listing = useRemote<Page<RecordItem>>(api, `/${kind}?page=${page}`, revision);
+  const { setPage, listing, reload, create } = useCatalogList(api, kind);
   const config = catalogs[kind];
   return <section className="panel"><div className="section-title"><h1>{config.title}</h1><div className="actions">
     {role === 'admin' && !creating && <button onClick={() => setCreating(true)}>Thêm mới</button>}
-    <button className="secondary" onClick={() => setRevision((value) => value + 1)}>Tải lại</button>
+    <button className="secondary" onClick={reload}>Tải lại</button>
   </div></div>
     {creating && <EditForm api={api} fields={config.fields} save={async (body) => {
-      const item = await api<RecordItem>(`/${kind}`, { method: 'POST', body }); open(kind, item.id);
+      const item = await create(body); open(kind, item.id);
     }} cancel={() => setCreating(false)} />}
     {!listing && <p role="status">Đang tải danh mục…</p>}
     {listing?.error && <p className="error" role="alert">{listing.error}</p>}
@@ -193,26 +133,9 @@ function DnsLinks({ api, path, ids, mutate, canEdit }: { api: RequestApi; path: 
 
 export function Detail({ kind, id, api, role, open, back }: { kind: Kind; id: string; api: RequestApi; role: Role;
   open: (kind: Kind, id: string) => void; back: () => void }) {
-  const path = `/${kind}/${id}`;
-  const [revision, setRevision] = useState(0);
-  const [editing, setEditing] = useState('');
-  const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
-  const result = useRemote<RecordItem>(api, path, revision);
-  const item = result?.data;
-  const admin = role === 'admin';
+  const { path, revision, editing, setEditing, error, busy, result, item, admin, assignment, canEdit, refresh, mutate, saveItem, saveChild } = useCatalogDetail(api, kind, id, role, back);
   const config = catalogs[kind];
-  const assignment = useRemote<{ organizationIds: string[]; applicationIds: string[] }>(api, admin && kind === 'users' ? `${path}/assignments` : '', revision);
   const fields = admin ? config.fields : config.fields.filter(({ key }) => ['name', 'description', 'status'].includes(key));
-  const canEdit = admin || (role === 'specialist' && kind === 'applications');
-  function refresh() { setEditing(''); setError(''); setRevision((value) => value + 1); }
-  async function mutate(url: string, method: string, body?: unknown) {
-    if (busy) return;
-    setBusy(true); setError('');
-    try { await api(url, { method, body }); if (url.endsWith('/archive')) back(); else refresh(); }
-    catch (error) { setError(errorText(error)); }
-    finally { setBusy(false); }
-  }
   const relations: RelationConfig[] = !item ? [] : kind === 'applications' ? [
     { kind: 'databases', ids: asIds(item.databaseIds), path: admin ? `${path}/databases` : undefined },
     { kind: 'servers', ids: asIds(item.serverIds), path: admin ? `${path}/servers` : undefined },
@@ -234,9 +157,7 @@ export function Detail({ kind, id, api, role, open, back }: { kind: Kind; id: st
     {!result && <p role="status">Đang tải chi tiết…</p>}
     {(result?.error || error || assignment?.error) && <p className="error" role="alert">{result?.error || error || assignment?.error}</p>}
     {item && <>
-      {editing === 'root' ? <EditForm key={item.version} item={item} api={api} fields={fields} cancel={() => setEditing('')} save={async (body) => {
-        await api(path, { method: 'PATCH', body: { ...body, version: item.version } }); refresh();
-      }} /> : <dl className="details">{config.fields.filter(({ key }) => item[key] != null).map(({ key, label, options, source }) =>
+      {editing === 'root' ? <EditForm key={item.version} item={item} api={api} fields={fields} cancel={() => setEditing('')} save={(body) => saveItem(body, item.version)} /> : <dl className="details">{config.fields.filter(({ key }) => item[key] != null).map(({ key, label, options, source }) =>
         <div key={key}><dt>{label}</dt><dd>{source && (source !== 'users' || admin) ? <ResourceName api={api} kind={source} id={String(item[key])} open={open} /> :
           options?.find(([value]) => value === item[key])?.[1] ?? (key === 'ownerId' ? String(item.ownerDisplayName ?? '—') : String(item[key]))}</dd></div>)}</dl>}
       {relations.length > 0 && <div className="related-grid">{relations.map((relation) => <RelationList key={`${relation.kind}:${revision}`} config={relation} api={api} open={open}
@@ -254,9 +175,7 @@ export function Detail({ kind, id, api, role, open, back }: { kind: Kind; id: st
             options?.find(([value]) => value === child[key])?.[1] ?? child[key]).filter((value) => value != null && value !== '').map(String).join(' · ')}</span>
             {admin && <div className="actions"><button className="secondary" onClick={() => setEditing(`${group.path}/${child.id}`)}>Sửa</button>
               <button className="secondary" onClick={() => { if (window.confirm('Xóa mục này?')) void mutate(`${path}/${group.path}/${child.id}`, 'DELETE', { version: item.version }); }}>Xóa</button></div>}</li>)}</ul>
-          {(adding || edited) && <EditForm key={editing} api={api} item={edited} fields={group.fields} cancel={() => setEditing('')} save={async (body) => {
-            await api(`${path}/${group.path}${edited ? `/${edited.id}` : ''}`, { method: edited ? 'PATCH' : 'POST', body: { ...body, version: item.version } }); refresh();
-          }} />}</div>;
+          {(adding || edited) && <EditForm key={editing} api={api} item={edited} fields={group.fields} cancel={() => setEditing('')} save={(body) => saveChild(group.path, edited?.id, body, item.version)} />}</div>;
       })}
     </>}
   </section>;

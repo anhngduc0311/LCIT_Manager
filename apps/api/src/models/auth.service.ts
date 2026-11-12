@@ -1,10 +1,9 @@
-import { Body, Controller, Get, HttpCode, Injectable, Post, Req, Res, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiBody, ApiOkResponse, ApiTags } from '@nestjs/swagger';
+import { Injectable } from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
 import { PoolClient } from 'pg';
-import { Actor, actorSchema, SessionGuard, SessionRequest, sha256, usernameOf } from './access';
-import { ApiError, ApiRequest, bodyOf, invalid, requestId } from './api-contract';
-import { recordAudit } from './audit';
+import { Actor, SessionRequest, sha256, usernameOf } from './access';
+import { ApiError, ApiRequest, bodyOf, invalid, requestId } from '../shared/api-contract';
+import { recordAudit } from './audit.service';
 import { Database } from './database';
 import { verifyPassword } from './password';
 
@@ -64,6 +63,15 @@ export class AuthService {
     return result;
   }
 
+  async findSessionActor(sessionHash: string): Promise<Actor | undefined> {
+    const { rows: [actor] } = await this.db.query<Actor>(`
+      SELECT u.id, u.username, u.display_name AS "displayName", u.role
+      FROM lcit.sessions s JOIN lcit.users u ON u.id = s.user_id
+      WHERE s.token_hash = $1 AND s.revoked_at IS NULL AND s.expires_at > now() AND u.status = 'active'
+    `, [sessionHash]);
+    return actor;
+  }
+
   async logout(request: SessionRequest) {
     await this.db.transaction(async (client) => {
       const result = await client.query('UPDATE lcit.sessions SET revoked_at = now() WHERE token_hash = $1 AND revoked_at IS NULL', [request.sessionHash]);
@@ -74,41 +82,5 @@ export class AuthService {
         });
       }
     });
-  }
-}
-
-@ApiTags('auth')
-@Controller('api/v1')
-export class AuthController {
-  constructor(private readonly auth: AuthService) {}
-
-  @Post('auth/login')
-  @HttpCode(200)
-  @ApiBody({ schema: { type: 'object', required: ['username', 'password'], properties: {
-    username: { type: 'string' }, password: { type: 'string', format: 'password' },
-  } } })
-  @ApiOkResponse({ schema: { type: 'object', required: ['token', 'expiresAt', 'user'], properties: {
-    token: { type: 'string' }, expiresAt: { type: 'string', format: 'date-time' }, user: actorSchema,
-  } } })
-  login(@Body() body: unknown, @Req() request: ApiRequest, @Res({ passthrough: true }) response: { setHeader(name: string, value: string): void }) {
-    response.setHeader('Cache-Control', 'no-store');
-    response.setHeader('X-Request-Id', requestId(request));
-    return this.auth.login(body, request);
-  }
-
-  @Post('auth/logout')
-  @HttpCode(204)
-  @UseGuards(SessionGuard)
-  @ApiBearerAuth()
-  async logout(@Req() request: SessionRequest) {
-    await this.auth.logout(request);
-  }
-
-  @Get('me')
-  @UseGuards(SessionGuard)
-  @ApiBearerAuth()
-  @ApiOkResponse({ schema: actorSchema })
-  me(@Req() request: SessionRequest) {
-    return request.actor;
   }
 }

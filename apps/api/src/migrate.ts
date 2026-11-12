@@ -1,6 +1,6 @@
 import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { createPool } from './database';
+import { createPool } from './models/database';
 
 async function migrate() {
   const directory = join(__dirname, '../migrations');

@@ -1,8 +1,7 @@
-import { Controller, Get, Injectable, Query, Req, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOkResponse, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { Injectable } from '@nestjs/common';
 import { isIP } from 'node:net';
-import { applicationDomainIds, applicationScope, SessionGuard, SessionRequest } from './access';
-import { paged, PageRow, pageSchema, pagination, text } from './api-contract';
+import { applicationDomainIds, applicationScope, SessionRequest } from './access';
+import { paged, PageRow, pagination, text } from '../shared/api-contract';
 import { Database } from './database';
 import { dnsName } from './network-input';
 
@@ -77,26 +76,5 @@ export class SearchService {
         COALESCE((SELECT json_agg(results ORDER BY name, id) FROM results), '[]') AS items
     `, [actor.id, ...match.values, pageSize, offset]);
     return paged(row, page, pageSize);
-  }
-}
-
-@ApiTags('search')
-@ApiBearerAuth()
-@UseGuards(SessionGuard)
-@Controller('api/v1/search')
-export class SearchController {
-  constructor(private readonly searchService: SearchService) {}
-
-  @Get()
-  @ApiQuery({ name: 'q', required: true, type: String })
-  @ApiQuery({ name: 'page', required: false, type: Number })
-  @ApiQuery({ name: 'pageSize', required: false, type: Number })
-  @ApiOkResponse({ schema: pageSchema({ type: 'object', required: ['id', 'name', 'code', 'organization', 'owner', 'servers', 'domains'], properties: {
-    id: { type: 'string', format: 'uuid' }, name: { type: 'string' }, code: { type: 'string' },
-    organization: { type: 'object' }, owner: { type: 'object', nullable: true },
-    servers: { type: 'array', items: { type: 'object' } }, domains: { type: 'array', items: { type: 'object' } },
-  } }) })
-  search(@Req() request: SessionRequest, @Query('q') query: unknown, @Query('page') page: unknown, @Query('pageSize') size: unknown) {
-    return this.searchService.search(request, query, page, size);
   }
 }

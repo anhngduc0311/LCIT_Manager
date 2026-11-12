@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { Database } from './database';
+import { Database } from './models/database';
 
 interface NamedItem { code: string; name: string }
 interface Fixture {

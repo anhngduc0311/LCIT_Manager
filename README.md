@@ -2,6 +2,14 @@
 
 Nền tảng phát triển cho ứng dụng quản lý hạ tầng. Desktop dùng Next.js xuất tĩnh và Tauri v2. API dùng NestJS và kết nối trực tiếp tới PostgreSQL Neon.
 
+## Cấu trúc mã nguồn MVC
+
+- **Model** nằm trong `apps/api/src/models` và `apps/desktop/src/models`. Các service NestJS xử lý nghiệp vụ và truy vấn PostgreSQL. Model desktop định nghĩa kiểu dữ liệu và gửi yêu cầu tới API.
+- **View** nằm trong `apps/desktop/src/views`, gồm các thành phần React, cấu hình hiển thị danh mục và CSS theo màn hình. Next.js dùng `apps/desktop/app` để khai báo route và layout.
+- **Controller** nằm trong `apps/api/src/controllers` và `apps/desktop/src/controllers`. Controller NestJS nhận yêu cầu HTTP, khai báo Swagger và gọi service. Các hook desktop xử lý phiên, điều hướng và thao tác dữ liệu cho View.
+
+Luồng chính đi từ View qua hook desktop và API client đến controller NestJS. Controller gọi Model để đọc hoặc ghi PostgreSQL rồi trả JSON cho desktop.
+
 ## Chạy trên Windows
 
 1. Chuẩn bị Node.js 22 trở lên, npm và kết nối tới npm registry. Kiểm tra bằng `node -v` và `npm -v`.
@@ -55,7 +63,7 @@ Trong Swagger UI tại `http://127.0.0.1:4000/docs`, gọi `POST /api/v1/auth/lo
 | `/search?q=...` | Trả ứng dụng cùng đơn vị, người phụ trách, máy chủ, DC, địa chỉ và phạm vi mạng, tên miền đã lọc quyền. IP và hostname/tên miền đầy đủ khớp chính xác. Từ khóa văn bản có thể khớp một phần tên ứng dụng hoặc đơn vị. |
 | `/audit-events` | Quản trị xem nhật ký đăng nhập, thay đổi phân công, tài khoản và danh mục. |
 
-Lãnh đạo thấy danh mục theo đơn vị được cấp. Chuyên viên thấy ứng dụng được phân công và tài nguyên liên kết trong phạm vi. Chuyên viên có thể sửa `name`, `description` và `status` của ứng dụng được phân công. `serviceType` nhận `ordered`, `monitoring` hoặc `operations`. Guard phiên và các hàm lọc `applicationScope`, `serverScope`, `domainScope` nằm trong `apps/api/src/access.ts`. Các thao tác ghi của người B có thể gọi `recordAudit` trong cùng transaction.
+Lãnh đạo thấy danh mục theo đơn vị được cấp. Chuyên viên thấy ứng dụng được phân công và tài nguyên liên kết trong phạm vi. Chuyên viên có thể sửa `name`, `description` và `status` của ứng dụng được phân công. `serviceType` nhận `ordered`, `monitoring` hoặc `operations`. Guard phiên nằm trong `apps/api/src/guards/session.guard.ts`. Các hàm lọc `applicationScope`, `serverScope`, `domainScope` nằm trong `apps/api/src/models/access.ts`. Các thao tác ghi của người B có thể gọi `recordAudit` trong cùng transaction.
 
 Chạy `npm.cmd test --workspace @lcit/api` để kiểm tra băm mật khẩu. Đặt `LCIT_TEST_DATABASE_URL` tới một PostgreSQL **dùng riêng cho kiểm thử, chưa có schema `lcit`** để chạy thêm ca tích hợp migration, seed, phiên, phân quyền và nhật ký. Bộ kiểm thử tạo schema và dữ liệu riêng trong DB đó.
 

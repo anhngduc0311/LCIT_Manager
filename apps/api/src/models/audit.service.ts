@@ -1,8 +1,7 @@
-import { Controller, Get, Query, Req, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { Injectable } from '@nestjs/common';
 import { PoolClient } from 'pg';
-import { requireAdmin, SessionGuard, SessionRequest } from './access';
-import { paged, PageRow, pagination } from './api-contract';
+import { requireAdmin, SessionRequest } from './access';
+import { paged, PageRow, pagination } from '../shared/api-contract';
 import { Database } from './database';
 
 export interface AuditEvent {
@@ -22,17 +21,11 @@ export async function recordAudit(client: PoolClient, event: AuditEvent) {
   `, [event.actorId, event.action, event.targetType, event.targetId, event.relatedId, event.outcome ?? 'success', event.requestId]);
 }
 
-@ApiTags('audit')
-@ApiBearerAuth()
-@UseGuards(SessionGuard)
-@Controller('api/v1/audit-events')
-export class AuditController {
+@Injectable()
+export class AuditService {
   constructor(private readonly db: Database) {}
 
-  @Get()
-  @ApiQuery({ name: 'page', required: false, type: Number })
-  @ApiQuery({ name: 'pageSize', required: false, type: Number })
-  async list(@Req() request: SessionRequest, @Query('page') rawPage: unknown, @Query('pageSize') rawSize: unknown) {
+  async list(request: SessionRequest, rawPage: unknown, rawSize: unknown) {
     requireAdmin(request.actor);
     const { page, pageSize, offset } = pagination(rawPage, rawSize);
     const { rows: [row] } = await this.db.query<PageRow>(`

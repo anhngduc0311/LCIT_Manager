@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto';
-import { usernameOf } from './access';
-import { text } from './api-contract';
-import { recordAudit } from './audit';
-import { Database } from './database';
-import { hashPassword, newPassword } from './password';
+import { usernameOf } from './models/access';
+import { text } from './shared/api-contract';
+import { recordAudit } from './models/audit.service';
+import { Database } from './models/database';
+import { hashPassword, newPassword } from './models/password';
 
 async function bootstrapAdmin() {
   const username = usernameOf(process.env.LCIT_ADMIN_USERNAME);

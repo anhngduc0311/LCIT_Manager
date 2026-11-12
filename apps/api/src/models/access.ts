@@ -1,7 +1,5 @@
-import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { createHash } from 'node:crypto';
-import { ApiError, ApiRequest, invalid, requestId, text } from './api-contract';
-import { Database } from './database';
+import { ApiError, ApiRequest, invalid, text } from '../shared/api-contract';
 
 export const roles = ['admin', 'leader', 'specialist'] as const;
 export const accountStatuses = ['active', 'locked'] as const;
@@ -32,29 +30,6 @@ export function usernameOf(value: unknown) {
   const username = text(value, 'username', 64, 3).toLowerCase();
   if (!/^[a-z0-9][a-z0-9._-]{2,63}$/.test(username)) invalid('username', 'Use ASCII letters, numbers, dots, underscores or hyphens.');
   return username;
-}
-
-@Injectable()
-export class SessionGuard implements CanActivate {
-  constructor(private readonly db: Database) {}
-
-  async canActivate(context: ExecutionContext) {
-    const http = context.switchToHttp();
-    const request = http.getRequest<SessionRequest>();
-    http.getResponse().setHeader('X-Request-Id', requestId(request));
-    http.getResponse().setHeader('Cache-Control', 'no-store');
-    const token = request.headers.authorization?.match(/^Bearer ([a-z0-9_-]{43})$/i)?.[1];
-    if (!token) throw new ApiError(401, 'INVALID_SESSION', 'Sign in to continue.');
-    request.sessionHash = sha256(token);
-    const { rows: [actor] } = await this.db.query<Actor>(`
-      SELECT u.id, u.username, u.display_name AS "displayName", u.role
-      FROM lcit.sessions s JOIN lcit.users u ON u.id = s.user_id
-      WHERE s.token_hash = $1 AND s.revoked_at IS NULL AND s.expires_at > now() AND u.status = 'active'
-    `, [request.sessionHash]);
-    if (!actor) throw new ApiError(401, 'INVALID_SESSION', 'Sign in to continue.');
-    request.actor = actor;
-    return true;
-  }
 }
 
 export function requireAdmin(actor: Actor) {

@@ -1,6 +1,6 @@
 import { isIP } from 'node:net';
 import { domainToASCII } from 'node:url';
-import { invalid, text } from './api-contract';
+import { invalid, text } from '../shared/api-contract';
 
 export function dnsName(raw: string, serviceLabels = false) {
   const name = raw.toLowerCase().replace(/\.$/, '');

@@ -48,3 +48,11 @@ export async function requestApi<T>(path: string, { method = 'GET', body, signal
   }
   return payload as T;
 }
+
+export async function checkHealth(signal: AbortSignal) {
+  const response = await fetch(`${apiUrl}/health/ready`, {
+    cache: 'no-store', signal: AbortSignal.any([signal, AbortSignal.timeout(8000)]),
+  });
+  const body = await response.json();
+  return response.ok && body.database === 'up' ? 'ready' : response.status === 503 ? 'unavailable' : 'offline';
+}

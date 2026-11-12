@@ -1,5 +1,5 @@
 import { randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
-import { invalid } from './api-contract';
+import { invalid } from '../shared/api-contract';
 
 const options = { N: 2 ** 16, r: 8, p: 1, maxmem: 80 * 1024 * 1024 };
 const dummySalt = Buffer.alloc(16);

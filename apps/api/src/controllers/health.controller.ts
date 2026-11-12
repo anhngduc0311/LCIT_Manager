@@ -1,6 +1,6 @@
 import { Controller, Get, ServiceUnavailableException } from '@nestjs/common';
 import { ApiOkResponse, ApiServiceUnavailableResponse, ApiTags } from '@nestjs/swagger';
-import { Database } from './database';
+import { Database } from '../models/database';
 
 @ApiTags('health')
 @Controller('health')

@@ -7,8 +7,8 @@ const path = require('node:path');
 const test = require('node:test');
 const { setTimeout: delay } = require('node:timers/promises');
 const { Pool } = require('pg');
-const { hashPassword, verifyPassword } = require('../dist/password');
-const { dateOnly, dnsOwner, domainName, host, port } = require('../dist/network-input');
+const { hashPassword, verifyPassword } = require('../dist/models/password');
+const { dateOnly, dnsOwner, domainName, host, port } = require('../dist/models/network-input');
 
 test('password hashes are salted and only verify the original password', async () => {
   const password = randomBytes(24).toString('hex');
