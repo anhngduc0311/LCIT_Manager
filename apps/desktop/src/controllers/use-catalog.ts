@@ -6,10 +6,28 @@ import { errorText, useRemote } from './use-remote';
 export function useCatalogList(api: RequestApi, kind: Kind) {
   const [page, setPage] = useState(1);
   const [revision, setRevision] = useState(0);
+  const [removing, setRemoving] = useState(false);
+  const [removeError, setRemoveError] = useState('');
   const listing = useRemote<Page<RecordItem>>(api, `/${kind}?page=${page}`, revision);
-  const reload = () => setRevision((value) => value + 1);
+  const reload = () => { setRemoveError(''); setRevision((value) => value + 1); };
   const create = (body: Record<string, unknown>) => api<RecordItem>(`/${kind}`, { method: 'POST', body });
-  return { setPage, listing, reload, create };
+  async function saveItem(item: RecordItem, body: Record<string, unknown>) {
+    await api(`/${kind}/${item.id}`, { method: 'PATCH', body: { ...body, version: item.version } });
+    reload();
+  }
+  async function removeItem(item: RecordItem) {
+    const data = listing?.data;
+    if (removing || !data) return;
+    setRemoving(true); setRemoveError('');
+    try {
+      await api(`/${kind}/${item.id}`, { method: 'DELETE', body: { version: item.version } });
+      const { total, pageSize } = data;
+      setPage(Math.min(page, Math.max(1, Math.ceil((total - 1) / pageSize))));
+      reload();
+    } catch (error) { setRemoveError(errorText(error)); }
+    finally { setRemoving(false); }
+  }
+  return { setPage, listing, reload, create, saveItem, removeItem, removing, removeError };
 }
 
 export function useCatalogDetail(api: RequestApi, kind: Kind, id: string, role: Role, back: () => void) {

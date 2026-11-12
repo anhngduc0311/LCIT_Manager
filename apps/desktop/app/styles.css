@@ -71,6 +71,9 @@ code { overflow-wrap: anywhere; }
 .details dt { color: var(--muted); font-size: .88rem; }
 .details dd { margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
 .editor .actions, .editor .error { margin-top: .8rem; }
+.rows > .account-row { flex-wrap: wrap; }
+.account-row > .editor { flex: 0 0 100%; margin-top: 0; }
+.account-delete { color: var(--error); }
 .picker { display: grid; gap: .25rem; max-width: 100%; min-width: 0; font-weight: 400; }
 .picker small { color: var(--error); }
 .picker .pager { margin-top: 0; }

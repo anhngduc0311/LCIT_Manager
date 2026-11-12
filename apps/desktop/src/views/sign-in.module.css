@@ -65,6 +65,28 @@
 
 .form input + label { margin-top: .45rem; }
 .form input:focus-visible { outline: 2px solid #23887b; outline-offset: 1px; }
+
+.passwordField { position: relative; }
+.passwordField input { padding-inline-end: 3rem; }
+.passwordField input::-ms-reveal { display: none; }
+
+.passwordToggle {
+  position: absolute;
+  inset-block: 1px;
+  inset-inline-end: 1px;
+  display: grid;
+  place-items: center;
+  width: 2.65rem;
+  padding: 0;
+  border: 0;
+  border-radius: .42rem;
+  background: transparent;
+  color: #526873;
+}
+
+.passwordToggle:hover:not(:disabled) { background: #eaf4f2; color: #08675c; }
+.passwordToggle:focus-visible { outline-offset: -3px; }
+
 .error { margin: .35rem 0 0; color: #a62e25; }
 
 .submit {

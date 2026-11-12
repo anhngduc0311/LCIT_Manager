@@ -23,5 +23,5 @@ export function Workspace() {
     <main><div hidden={current.kind !== 'search'}><Search api={api} open={open} /></div>
       {current.kind === 'search' ? null : current.kind === 'health' ? <section className={`panel ${styles.connectionPanel}`}><h1>Kết nối hệ thống</h1><Health /></section> :
       current.id ? <Detail key={`${current.kind}:${current.id}`} kind={current.kind} id={current.id} api={api} role={role} open={open} back={() => navigate({ kind: current.kind as Kind })} /> :
-      <Catalog key={current.kind} kind={current.kind} api={api} role={role} open={open} />}</main></div></div>;
+      <Catalog key={current.kind} kind={current.kind} api={api} role={role} actorId={session.user.id} open={open} />}</main></div></div>;
 }

@@ -99,7 +99,7 @@ test('phase 1 migration, catalog permissions, sessions and audit', {
   const login = (username, suppliedPassword = password, status = 200) => call('POST', '/auth/login', {
     body: { username, password: suppliedPassword }, status,
   });
-  const admin = (await login('TEST-ADMIN')).token;
+  const { token: admin, user: adminUser } = await login('TEST-ADMIN');
   const { items: apps, total } = await call('GET', '/applications', { token: admin });
   assert.equal(total, 2);
   const [appA, appB] = ['APP-A', 'APP-B'].map((code) => apps.find((app) => app.code === code));
@@ -185,7 +185,25 @@ test('phase 1 migration, catalog permissions, sessions and audit', {
   await call('GET', '/me', { token: leaderToken, status: 401 });
   await call('POST', '/auth/logout', { token: specialistToken, status: 204 });
   await call('GET', '/me', { token: specialistToken, status: 401 });
+
+  const removed = await createUser('test-removed', 'leader');
+  const removedPath = `/users/${removed.id}`;
+  const removedToken = (await login(removed.username)).token;
+  await call('PUT', `${removedPath}/assignments/organizations/${appA.organizationId}`, { token: admin, status: 204 });
+  const updated = await call('PATCH', removedPath, { token: admin, body: { version: removed.version, displayName: 'Updated account' } });
+  assert.equal(updated.displayName, 'Updated account');
+  await call('DELETE', removedPath, { token: removedToken, status: 403, body: { version: updated.version } });
+  await call('DELETE', `/users/${adminUser.id}`, { token: admin, status: 409, body: { version: 1 } });
+  await call('DELETE', removedPath, { token: admin, status: 409, body: { version: removed.version } });
+  await call('DELETE', removedPath, { token: admin, status: 204, body: { version: updated.version } });
+  await call('GET', '/me', { token: removedToken, status: 401 });
+  await call('GET', removedPath, { token: admin, status: 404 });
+  assert(!(await call('GET', '/users', { token: admin })).items.some((user) => user.id === removed.id));
+  await login(removed.username, password, 401);
+  assert.notEqual((await createUser(removed.username, 'leader')).id, removed.id);
+
   const { items: events } = await call('GET', '/audit-events?pageSize=100', { token: admin });
+  assert(events.some((event) => event.action === 'user.delete' && event.targetId === removed.id));
   assert(events.some((event) => event.action === 'applications.assignment.revoke' && event.relatedId === appA.id));
   assert(events.some((event) => event.action === 'catalog.update' && event.actorId === specialist.id && event.targetId === appA.id));
   assert(events.some((event) => event.action === 'catalog.access-endpoints.create' && event.targetId === endpoint.id && event.relatedId === serverA.id));

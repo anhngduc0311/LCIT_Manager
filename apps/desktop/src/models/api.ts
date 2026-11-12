@@ -21,6 +21,7 @@ const messages: Record<string, string> = {
   DNS_RECORD_LINKED: 'Gỡ liên kết bản ghi DNS khỏi ứng dụng trước khi xóa.',
   INVALID_REFERENCE: 'Dữ liệu tham chiếu không còn hợp lệ. Hãy tải lại rồi chọn lại.',
   ASSIGNMENT_ROLE: 'Vai trò tài khoản không phù hợp với loại phân công này.',
+  SELF_DELETE: 'Bạn không thể xóa tài khoản đang đăng nhập.',
 };
 
 export class ApiFailure extends Error {

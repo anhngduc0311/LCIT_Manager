@@ -16,9 +16,9 @@ export function Pager({ page, pageSize, total, change }: { page: number; pageSiz
   </div></div>;
 }
 
-function Picker({ api, kind, value, change, required }: { api: RequestApi; kind: Kind; value: string; change: (value: string) => void; required?: boolean }) {
+function Picker({ api, kind, value, change, required, initialLabel = '' }: { api: RequestApi; kind: Kind; value: string; change: (value: string) => void; required?: boolean; initialLabel?: string }) {
   const [page, setPage] = useState(1);
-  const [label, setLabel] = useState('');
+  const [label, setLabel] = useState(initialLabel);
   const result = useRemote<Page<RecordItem>>(api, `/${kind}?page=${page}`);
   const detail = useRemote<RecordItem>(api, value && !result?.data?.items.some((item) => item.id === value) ? `/${kind}/${value}` : '');
   return <span className="picker"><select aria-label={`Chọn ${catalogs[kind].title.toLowerCase()}`} required={required} value={value} onChange={(event) => {
@@ -56,7 +56,8 @@ function EditForm({ api, fields, item, save, cancel }: {
       const value = values[key] ?? '';
       const change = (newValue: string) => setValues((previous) => ({ ...previous, [key]: newValue }));
       const needed = required || (type === 'password' && !item);
-      return <label key={key}>{label}{source ? <Picker api={api} kind={source} value={value} change={change} required={needed} /> :
+      return <label key={key}>{label}{source ? <Picker api={api} kind={source} value={value} change={change} required={needed}
+        initialLabel={key === 'ownerId' ? String(item?.ownerDisplayName ?? '') : undefined} /> :
         options ? <select value={value} required={needed} onChange={(event) => change(event.target.value)}><option value="" disabled={Boolean(item?.[key])}>Chọn</option>
           {options.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select> :
         type === 'area' ? <textarea rows={3} value={value} required={needed} onChange={(event) => change(event.target.value)} /> :
@@ -67,31 +68,45 @@ function EditForm({ api, fields, item, save, cancel }: {
   <div className="actions"><button disabled={busy}>{busy ? 'Đang lưu…' : 'Lưu'}</button><button type="button" className="secondary" disabled={busy} onClick={cancel}>Hủy</button></div></form>;
 }
 
-function ResourceName({ api, kind, id, open }: { api: RequestApi; kind: Kind; id: string; open?: (kind: Kind, id: string) => void }) {
+function ResourceName({ api, kind, id, open, fallback }: { api: RequestApi; kind: Kind; id: string; open?: (kind: Kind, id: string) => void; fallback?: string }) {
   const result = useRemote<RecordItem>(api, `/${kind}/${id}`);
-  if (result?.error) return <span className="muted">{result.error}</span>;
+  if (result?.error) return <span className="muted">{fallback || result.error}</span>;
   if (!result?.data) return <span className="muted">Đang tải…</span>;
   return open ? <button className="text-button" onClick={() => open(kind, id)}>{itemTitle(result.data)}</button> : <span>{itemTitle(result.data)}</span>;
 }
 
-export function Catalog({ kind, api, role, open }: { kind: Kind; api: RequestApi; role: Role; open: (kind: Kind, id: string) => void }) {
+export function Catalog({ kind, api, role, actorId, open }: { kind: Kind; api: RequestApi; role: Role; actorId: string; open: (kind: Kind, id: string) => void }) {
   const [creating, setCreating] = useState(false);
-  const { setPage, listing, reload, create } = useCatalogList(api, kind);
+  const [editing, setEditing] = useState('');
+  const { setPage, listing, reload, create, saveItem, removeItem, removing, removeError } = useCatalogList(api, kind);
   const config = catalogs[kind];
+  const manageAccounts = kind === 'users' && role === 'admin';
   return <section className="panel"><div className="section-title"><h1>{config.title}</h1><div className="actions">
-    {role === 'admin' && !creating && <button onClick={() => setCreating(true)}>Thêm mới</button>}
-    <button className="secondary" onClick={reload}>Tải lại</button>
+    {role === 'admin' && !creating && <button disabled={removing} onClick={() => { setEditing(''); setCreating(true); }}>Thêm mới</button>}
+    <button className="secondary" disabled={removing} onClick={() => { setEditing(''); reload(); }}>Tải lại</button>
   </div></div>
     {creating && <EditForm api={api} fields={config.fields} save={async (body) => {
       const item = await create(body); open(kind, item.id);
     }} cancel={() => setCreating(false)} />}
     {!listing && <p role="status">Đang tải danh mục…</p>}
     {listing?.error && <p className="error" role="alert">{listing.error}</p>}
+    {removeError && <p className="error" role="alert">{removeError}</p>}
     {listing?.data && <>{listing.data.items.length === 0 ? <p className="empty">Chưa có dữ liệu trong phạm vi của bạn.</p> :
-      <ul className="rows">{listing.data.items.map((row) => <li key={row.id}>
+      <ul className="rows">{listing.data.items.map((row) => <li key={row.id} className={manageAccounts ? 'account-row' : undefined}>
         <button className="text-button" onClick={() => open(kind, row.id)}>{itemTitle(row)}</button>
-        <span className="muted">{String(row.code ?? row.username ?? row.renewalDate ?? '')}</span>
-      </li>)}</ul>}<Pager {...listing.data} change={setPage} /></>}
+        <div className="actions"><span className="muted">{String(row.code ?? row.username ?? row.renewalDate ?? '')}</span>
+          {manageAccounts && <>
+            <button type="button" className="secondary" disabled={removing || creating || editing === row.id}
+              aria-label={`Sửa tài khoản ${row.username}`} onClick={() => setEditing(row.id)}>Sửa</button>
+            {row.id !== actorId && <button type="button" className="secondary account-delete" disabled={removing || creating || Boolean(editing)}
+              aria-label={`Xóa tài khoản ${row.username}`} onClick={() => {
+                if (window.confirm(`Xóa tài khoản "${row.username}"? Tài khoản sẽ bị đăng xuất và mất quyền truy cập.`)) void removeItem(row);
+              }}>Xóa</button>}
+          </>}
+        </div>
+        {manageAccounts && editing === row.id && <EditForm key={row.version} api={api} fields={config.fields} item={row}
+          cancel={() => setEditing('')} save={async (body) => { await saveItem(row, body); setEditing(''); }} />}
+      </li>)}</ul>}<Pager {...listing.data} change={(page) => { if (!removing) { setEditing(''); setPage(page); } }} /></>}
   </section>;
 }
 
@@ -158,7 +173,8 @@ export function Detail({ kind, id, api, role, open, back }: { kind: Kind; id: st
     {(result?.error || error || assignment?.error) && <p className="error" role="alert">{result?.error || error || assignment?.error}</p>}
     {item && <>
       {editing === 'root' ? <EditForm key={item.version} item={item} api={api} fields={fields} cancel={() => setEditing('')} save={(body) => saveItem(body, item.version)} /> : <dl className="details">{config.fields.filter(({ key }) => item[key] != null).map(({ key, label, options, source }) =>
-        <div key={key}><dt>{label}</dt><dd>{source && (source !== 'users' || admin) ? <ResourceName api={api} kind={source} id={String(item[key])} open={open} /> :
+        <div key={key}><dt>{label}</dt><dd>{source && (source !== 'users' || admin) ? <ResourceName api={api} kind={source} id={String(item[key])} open={open}
+          fallback={key === 'ownerId' ? String(item.ownerDisplayName ?? '') : undefined} /> :
           options?.find(([value]) => value === item[key])?.[1] ?? (key === 'ownerId' ? String(item.ownerDisplayName ?? '—') : String(item[key]))}</dd></div>)}</dl>}
       {relations.length > 0 && <div className="related-grid">{relations.map((relation) => <RelationList key={`${relation.kind}:${revision}`} config={relation} api={api} open={open}
         mutate={(url, method) => mutate(url, method, kind === 'users' ? undefined : { version: item.version })} />)}</div>}
