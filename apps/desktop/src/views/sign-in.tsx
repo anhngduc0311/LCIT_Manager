@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useHealth, useSignIn } from '../controllers/use-sign-in';
 import { apiUrl, Session } from '../models/api';
 import styles from './sign-in.module.css';
+import { Icon } from './icon';
 
 const healthMessages = {
   checking: 'Đang kiểm tra kết nối', ready: 'API và cơ sở dữ liệu đang hoạt động',
@@ -23,16 +24,22 @@ export function SignIn({ onLogin, notice }: { onLogin: (session: Session) => voi
   const { error, busy, submit } = useSignIn(onLogin);
   const [passwordVisible, setPasswordVisible] = useState(false);
   return <main className={styles.shell}>
+    <section className={styles.intro} aria-label="Giới thiệu LCIT Manager">
+      <div className={styles.introBrand}><span className={styles.mark}>L</span>LCIT Manager</div>
+      <div className={styles.introContent}><span className={styles.kicker}>KHÔNG GIAN QUẢN LÝ TẬP TRUNG</span><h2>Hạ tầng rõ ràng.<br /><em>Vận hành chủ động.</em></h2><p>Kết nối ứng dụng, máy chủ và dữ liệu trong một không gian làm việc thống nhất.</p>
+      <div className={styles.resourceGrid}>{[['applications', 'Ứng dụng'], ['servers', 'Máy chủ'], ['domains', 'Tên miền'], ['databases', 'Cơ sở dữ liệu']].map(([icon, label]) => <div key={icon}><Icon name={icon} /><span>{label}</span></div>)}</div></div>
+      <div className={styles.introFooter}><Icon name="shield" size={18} />Thông tin tập trung · Truy cập theo phân quyền</div>
+    </section>
     <div className={styles.surface}>
       <header className={styles.brand}><span className={styles.mark} aria-hidden="true">L</span><span>LCIT Manager</span></header>
       <section className={styles.card} aria-labelledby="sign-in-title">
-        <h1 id="sign-in-title">Đăng nhập</h1>
+        <p className="eyebrow">CHÀO MỪNG TRỞ LẠI</p><h1 id="sign-in-title">Đăng nhập</h1><p className={styles.subtitle}>Truy cập không gian làm việc của bạn.</p>
         <form className={styles.form} onSubmit={submit} aria-busy={busy}>
           <label htmlFor="sign-in-username">Tên đăng nhập</label>
-          <input id="sign-in-username" name="username" autoComplete="username" autoCapitalize="none" spellCheck={false} maxLength={64} required />
+          <input id="sign-in-username" name="username" placeholder="Nhập tên đăng nhập" autoComplete="username" autoCapitalize="none" spellCheck={false} maxLength={64} required />
           <label htmlFor="sign-in-password">Mật khẩu</label>
           <div className={styles.passwordField}>
-            <input id="sign-in-password" name="password" type={passwordVisible ? 'text' : 'password'} autoComplete="current-password" maxLength={256} required />
+            <input id="sign-in-password" name="password" placeholder="Nhập mật khẩu" type={passwordVisible ? 'text' : 'password'} autoComplete="current-password" maxLength={256} required />
             <button
               type="button"
               className={styles.passwordToggle}
