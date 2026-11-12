@@ -42,7 +42,7 @@ export class AuthService {
     const result = await this.db.transaction(async (client) => {
       const { rows: [user] } = await client.query<Actor & { status: string; passwordHash: string }>(`
         SELECT id, username, display_name AS "displayName", role, status, password_hash AS "passwordHash"
-        FROM lcit.users WHERE username = $1 FOR SHARE
+        FROM lcit.users WHERE username = $1 AND deleted_at IS NULL FOR SHARE
       `, [username]);
       const valid = await verifyPassword(password, user?.passwordHash);
       if (!valid || user?.status !== 'active') {
@@ -67,7 +67,7 @@ export class AuthService {
     const { rows: [actor] } = await this.db.query<Actor>(`
       SELECT u.id, u.username, u.display_name AS "displayName", u.role
       FROM lcit.sessions s JOIN lcit.users u ON u.id = s.user_id
-      WHERE s.token_hash = $1 AND s.revoked_at IS NULL AND s.expires_at > now() AND u.status = 'active'
+      WHERE s.token_hash = $1 AND s.revoked_at IS NULL AND s.expires_at > now() AND u.status = 'active' AND u.deleted_at IS NULL
     `, [sessionHash]);
     return actor;
   }

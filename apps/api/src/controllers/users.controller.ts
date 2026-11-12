@@ -1,5 +1,5 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Put, Query, Req, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiBody, ApiCreatedResponse, ApiOkResponse, ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiCreatedResponse, ApiNoContentResponse, ApiOkResponse, ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { SessionGuard } from '../guards/session.guard';
 import { accountStatuses, actorSchema, roles, SessionRequest } from '../models/access';
 import { assignmentTypes, UsersService } from '../models/users.service';
@@ -47,6 +47,14 @@ export class UsersController {
   @ApiOkResponse({ schema: userSchema })
   update(@Req() request: SessionRequest, @Param('id') id: string, @Body() body: unknown) {
     return this.users.update(request, id, body);
+  }
+
+  @Delete(':id')
+  @HttpCode(204)
+  @ApiBody({ schema: { type: 'object', properties: { version: { type: 'integer' } }, required: ['version'] } })
+  @ApiNoContentResponse()
+  remove(@Req() request: SessionRequest, @Param('id') id: string, @Body() body: unknown) {
+    return this.users.remove(request, id, body);
   }
 
   @Get(':id/assignments')

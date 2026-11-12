@@ -91,7 +91,7 @@ async function validateReferences(client: PoolClient, values: Values) {
   }
   const owner = values.find(({ key }) => key === 'ownerId');
   if (owner?.value) {
-    const { rowCount } = await client.query('SELECT id FROM lcit.users WHERE id = $1 FOR KEY SHARE', [owner.value]);
+    const { rowCount } = await client.query('SELECT id FROM lcit.users WHERE id = $1 AND deleted_at IS NULL FOR KEY SHARE', [owner.value]);
     if (!rowCount) invalid('ownerId', 'Choose an existing account.');
   }
 }

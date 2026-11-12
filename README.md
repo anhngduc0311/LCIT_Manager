@@ -30,7 +30,7 @@ Mở hai cửa sổ PowerShell tại thư mục gốc và giữ cả hai chạy 
 | Cửa sổ | Lệnh | Địa chỉ |
 | --- | --- | --- |
 | API | `npm.cmd run dev:api` | [Swagger UI](http://127.0.0.1:4000/docs), [OpenAPI JSON](http://127.0.0.1:4000/docs-json) |
-| Giao diện | `npm.cmd run dev:desktop` | [LCIT Manager](http://127.0.0.1:3000) |
+| Giao diện | `npm.cmd run dev:desktop`, `npm.cmd run desktop:dev` | [LCIT Manager](http://127.0.0.1:3000) |
 
 Mở giao diện và đăng nhập bằng tài khoản ở bước 2 hoặc tài khoản đã có trên database. Nếu muốn chạy bản ứng dụng Windows bằng Tauri, xem mục [Build và chạy ứng dụng Windows](#build-và-chạy-ứng-dụng-windows).
 

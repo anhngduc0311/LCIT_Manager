@@ -29,6 +29,7 @@ const messages: Record<string, string> = {
   DNS_RECORD_LINKED: 'Gỡ liên kết bản ghi DNS khỏi ứng dụng trước khi xóa.',
   INVALID_REFERENCE: 'Dữ liệu tham chiếu không còn hợp lệ. Hãy tải lại rồi chọn lại.',
   ASSIGNMENT_ROLE: 'Vai trò tài khoản không phù hợp với loại phân công này.',
+  SELF_DELETE: 'Bạn không thể xóa tài khoản đang đăng nhập.',
   FILE_TOO_LARGE: 'Tệp vượt quá dung lượng cho phép (20 MiB).',
   UNSUPPORTED_FILE_TYPE: 'Định dạng tệp không được hỗ trợ hoặc nội dung không khớp phần mở rộng.',
   EMPTY_FILE: 'Tệp rỗng.',
