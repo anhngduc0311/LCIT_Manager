@@ -5,6 +5,7 @@ import { Page, RecordItem, RequestApi, Role } from '../models/api';
 import { Kind } from '../models/catalog';
 import { catalogs, childGroups, Field, roleNames } from './catalog-config';
 import accountStyles from './accounts.module.css';
+import loadingStyles from './catalog-loading.module.css';
 
 const itemTitle = (row: RecordItem) => String(row.name ?? row.hostname ?? row.displayName ?? row.username ?? row.id);
 const asIds = (value: unknown) => Array.isArray(value) ? value as string[] : [];
@@ -76,6 +77,13 @@ function ResourceName({ api, kind, id, open, fallback }: { api: RequestApi; kind
   return open ? <button className="text-button" onClick={() => open(kind, id)}>{itemTitle(result.data)}</button> : <span>{itemTitle(result.data)}</span>;
 }
 
+function ReloadButton({ loading, disabled, reload }: { loading: boolean; disabled?: boolean; reload: () => void }) {
+  return <button type="button" className={`secondary ${loadingStyles.reload}`} disabled={loading || disabled} onClick={reload}>
+    {loading && <span className={loadingStyles.spinner} aria-hidden="true" />}
+    {loading ? 'Đang tải…' : 'Tải lại'}
+  </button>;
+}
+
 export function Catalog({ kind, api, role, actorId, open }: { kind: Kind; api: RequestApi; role: Role; actorId: string; open: (kind: Kind, id: string) => void }) {
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState('');
@@ -84,6 +92,7 @@ export function Catalog({ kind, api, role, actorId, open }: { kind: Kind; api: R
   const config = catalogs[kind];
   const manageAccounts = kind === 'users' && role === 'admin';
   const accountPage = listing?.data;
+  const loading = !listing;
 
   function resetAccountActions() {
     setConfirming('');
@@ -94,7 +103,7 @@ export function Catalog({ kind, api, role, actorId, open }: { kind: Kind; api: R
     <header className={accountStyles.header}>
       <div><h1 id="accounts-title">Tài khoản</h1><p>Quản lý người dùng và quyền truy cập.</p></div>
       <div className="actions">
-        <button className="secondary" disabled={removing} onClick={() => { resetAccountActions(); reload(); }}>Tải lại</button>
+        <ReloadButton loading={loading} disabled={removing} reload={() => { resetAccountActions(); reload(); }} />
         <button disabled={removing || creating} onClick={() => { resetAccountActions(); setCreating(true); }}>+ Thêm tài khoản</button>
       </div>
     </header>
@@ -102,15 +111,23 @@ export function Catalog({ kind, api, role, actorId, open }: { kind: Kind; api: R
       const item = await create(body);
       open(kind, item.id);
     }} />}
-    {!listing && <p className={accountStyles.feedback} role="status">Đang tải tài khoản…</p>}
+    <span className={loadingStyles.announcement} role="status">{loading ? 'Đang tải tài khoản…' : ''}</span>
     {listing?.error && <p className={`error ${accountStyles.feedback}`} role="alert">{listing.error}</p>}
     {removeError && <p className={`error ${accountStyles.feedback}`} role="alert">{removeError}</p>}
-    {accountPage && <div className={accountStyles.list}>
-      {accountPage.items.length === 0 ? <p className="empty">Chưa có tài khoản.</p> :
-        <div className={accountStyles.scroll} tabIndex={0} role="region" aria-label="Danh sách tài khoản">
+    {(loading || accountPage) && <div className={accountStyles.list} aria-busy={loading}>
+      {accountPage?.items.length === 0 ? <p className="empty">Chưa có tài khoản.</p> :
+        <div className={accountStyles.scroll} tabIndex={loading ? undefined : 0} role="region" aria-label="Danh sách tài khoản">
           <table className={accountStyles.table} aria-label="Danh sách tài khoản">
             <thead><tr><th scope="col">Người dùng</th><th scope="col">Vai trò</th><th scope="col">Trạng thái</th><th scope="col">Thao tác</th></tr></thead>
-            <tbody>{accountPage.items.map((row) => {
+            <tbody>{loading && [0, 1, 2].map((row) => <tr key={row} className={accountStyles.placeholder} aria-hidden="true">
+              <td><div className={accountStyles.identity}>
+                <span className={`${accountStyles.skeletonAvatar} ${loadingStyles.skeleton}`} />
+                <div><span className={`${loadingStyles.skeleton} ${accountStyles.skeletonName}`} /><span className={`${loadingStyles.skeleton} ${accountStyles.skeletonUsername}`} /></div>
+              </div></td>
+              <td><span className={`${loadingStyles.skeleton} ${accountStyles.skeletonBadge}`} /></td>
+              <td><span className={`${loadingStyles.skeleton} ${accountStyles.skeletonBadge}`} /></td>
+              <td><div className={accountStyles.rowActions}><span className={`${loadingStyles.skeleton} ${accountStyles.skeletonAction}`} /><span className={`${loadingStyles.skeleton} ${accountStyles.skeletonAction}`} /></div></td>
+            </tr>)}{accountPage?.items.map((row) => {
               const name = itemTitle(row);
               const username = String(row.username ?? '');
               const accountRole = String(row.role ?? '');
@@ -148,24 +165,30 @@ export function Catalog({ kind, api, role, actorId, open }: { kind: Kind; api: R
             })}</tbody>
           </table>
         </div>}
-      <Pager {...accountPage} change={(page) => { if (!removing) { resetAccountActions(); setPage(page); } }} />
+      {accountPage && <Pager {...accountPage} change={(page) => { if (!removing) { resetAccountActions(); setPage(page); } }} />}
     </div>}
   </section>;
 
   return <section className="panel catalog-panel"><div className="section-title"><div><p className="eyebrow">DANH MỤC HỆ THỐNG</p><h1>{config.title}</h1><p className="page-description">Quản lý và tra cứu thông tin {config.title.toLocaleLowerCase('vi')}.</p></div><div className="actions">
     {role === 'admin' && !creating && <button onClick={() => setCreating(true)}>Thêm mới</button>}
-    <button className="secondary" onClick={reload}>Tải lại</button>
+    <ReloadButton loading={loading} reload={reload} />
   </div></div>
     {creating && <EditForm api={api} fields={config.fields} save={async (body) => {
       const item = await create(body); open(kind, item.id);
     }} cancel={() => setCreating(false)} />}
-    {!listing && <p role="status">Đang tải danh mục…</p>}
+    <span className={loadingStyles.announcement} role="status">{loading ? `Đang tải danh mục ${config.title.toLocaleLowerCase('vi')}…` : ''}</span>
     {listing?.error && <p className="error" role="alert">{listing.error}</p>}
-    {listing?.data && <>{listing.data.items.length === 0 ? <p className="empty">Chưa có dữ liệu trong phạm vi của bạn.</p> :
+    <div aria-busy={loading} className={loadingStyles.catalogRows}>
+      {loading && <ul className="rows" aria-hidden="true">{[0, 1, 2].map((row) => <li key={row} className={loadingStyles.placeholder}>
+        <span className={`${loadingStyles.skeleton} ${loadingStyles.rowTitle}`} />
+        <span className={`${loadingStyles.skeleton} ${loadingStyles.rowCode}`} />
+      </li>)}</ul>}
+      {listing?.data && <>{listing.data.items.length === 0 ? <p className="empty">Chưa có dữ liệu trong phạm vi của bạn.</p> :
       <ul className="rows">{listing.data.items.map((row) => <li key={row.id}>
         <button className="text-button" onClick={() => open(kind, row.id)}>{itemTitle(row)}</button>
         <span className="muted">{String(row.code ?? row.username ?? row.renewalDate ?? '')}</span>
       </li>)}</ul>}<Pager {...listing.data} change={setPage} /></>}
+    </div>
   </section>;
 }
 

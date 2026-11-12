@@ -20,6 +20,8 @@
 .table tbody tr:hover { background: #f9fbfd; }
 .table th:last-child { text-align: right; }
 .table tbody th:first-child { text-align: left; width: 44%; font-weight: 400; }
+.placeholder td:first-child { width: 44%; }
+.table tbody .placeholder:hover { background: transparent; }
 .identity { display: flex; align-items: center; gap: .7rem; }
 .identity > div { min-width: 0; overflow-wrap: anywhere; }
 .initial {
@@ -33,6 +35,11 @@
   color: #086976;
   font-weight: 700;
 }
+.placeholder .skeletonAvatar { flex: 0 0 2.35rem; height: 2.35rem; border-radius: 10px; }
+.skeletonName { width: 7rem; height: .8rem; }
+.skeletonUsername { width: 4.75rem; height: .6rem; margin-top: .45rem; }
+.skeletonBadge { width: 4.5rem; height: 1.45rem; border-radius: 999px; }
+.skeletonAction { width: 2.5rem; height: 2rem; border-radius: 8px; }
 .name { color: var(--ink); }
 .username { display: block; color: var(--muted); font-size: .79rem; }
 .current { margin-left: .45rem; color: #086976; font-size: .72rem; font-weight: 650; }
