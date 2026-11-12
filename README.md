@@ -2,22 +2,42 @@
 
 Nền tảng phát triển cho ứng dụng quản lý hạ tầng. Desktop dùng Next.js xuất tĩnh và Tauri v2. API dùng NestJS và kết nối trực tiếp tới PostgreSQL Neon.
 
-## Cấu trúc mã nguồn MVC
+## Chạy lần đầu sau khi clone trên Windows
 
-- **Model** nằm trong `apps/api/src/models` và `apps/desktop/src/models`. Các service NestJS xử lý nghiệp vụ và truy vấn PostgreSQL. Model desktop định nghĩa kiểu dữ liệu và gửi yêu cầu tới API.
-- **View** nằm trong `apps/desktop/src/views`, gồm các thành phần React, cấu hình hiển thị danh mục và CSS theo màn hình. Next.js dùng `apps/desktop/app` để khai báo route và layout.
-- **Controller** nằm trong `apps/api/src/controllers` và `apps/desktop/src/controllers`. Controller NestJS nhận yêu cầu HTTP, khai báo Swagger và gọi service. Các hook desktop xử lý phiên, điều hướng và thao tác dữ liệu cho View.
+Để chạy trên trình duyệt, chuẩn bị **Node.js 22 trở lên**, npm và quyền truy cập cơ sở dữ liệu **PostgreSQL Neon** dùng cho phát triển. Chạy các lệnh bên dưới trong PowerShell tại thư mục gốc `LCIT_Manager`.
 
-Luồng chính đi từ View qua hook desktop và API client đến controller NestJS. Controller gọi Model để đọc hoặc ghi PostgreSQL rồi trả JSON cho desktop.
+### 1. Cài dependencies và cấu hình database
 
-## Chạy trên Windows
+```powershell
+node -v
+npm.cmd -v
+npm.cmd install
+if (-not (Test-Path apps/api/.env.local)) {
+    Copy-Item apps/api/.env.example apps/api/.env.local
+}
+```
 
-1. Chuẩn bị Node.js 22 trở lên, npm và kết nối tới npm registry. Kiểm tra bằng `node -v` và `npm -v`.
-2. Từ thư mục repo, chạy `npm install` để cài dependencies và sinh `package-lock.json`. Sau khi có lockfile, dùng `npm ci` để cài lại cùng bộ phiên bản.
-3. Kiểm tra `apps/api/.env.local`. Nếu chưa có, sao chép từ `apps/api/.env.example` và đặt `DATABASE_URL` thành URI Neon của môi trường phát triển. Các lệnh npm của API đọc cấu hình này. Chỉ ghi cấu hình mẫu vào Git.
-4. Chạy `npm run db:migrate`. Lệnh tạo schema `lcit` và bảng theo dõi migration trên DB đã cấu hình. Chạy lại để xác nhận kết quả `Database is up to date.`.
-5. Chạy `npm run dev:api`. Swagger UI ở `http://127.0.0.1:4000/docs` và OpenAPI JSON ở `http://127.0.0.1:4000/docs-json`.
-6. Mở terminal khác, chạy `npm run dev:desktop` rồi mở `http://127.0.0.1:3000`. Màn hình kết nối sẽ gọi readiness endpoint của API.
+Mở `apps/api/.env.local` và thay giá trị mẫu của `DATABASE_URL` bằng chuỗi kết nối Neon của môi trường phát triển. Chỉ đưa tệp `.env.example` chứa cấu hình mẫu vào Git.
+
+```powershell
+npm.cmd run db:migrate
+```
+
+Lệnh áp dụng các migration còn thiếu. Nếu muốn có dữ liệu mẫu trên database thử nghiệm, chạy thêm `npm.cmd run db:seed`.
+
+
+### 2. Chạy API và giao diện
+
+Mở hai cửa sổ PowerShell tại thư mục gốc và giữ cả hai chạy trong lúc sử dụng.
+
+| Cửa sổ | Lệnh | Địa chỉ |
+| --- | --- | --- |
+| API | `npm.cmd run dev:api` | [Swagger UI](http://127.0.0.1:4000/docs), [OpenAPI JSON](http://127.0.0.1:4000/docs-json) |
+| Giao diện | `npm.cmd run dev:desktop` | [LCIT Manager](http://127.0.0.1:3000) |
+
+Mở giao diện và đăng nhập bằng tài khoản ở bước 2 hoặc tài khoản đã có trên database. Nếu muốn chạy bản ứng dụng Windows bằng Tauri, xem mục [Build và chạy ứng dụng Windows](#build-và-chạy-ứng-dụng-windows).
+
+### Kiểm tra kết nối API
 
 Kiểm tra API từ PowerShell khi API đang chạy.
 
@@ -28,26 +48,15 @@ curl.exe -i http://127.0.0.1:4000/health/ready
 
 Liveness trả HTTP 200 khi tiến trình API chạy. Readiness trả HTTP 200 khi PostgreSQL phản hồi và HTTP 503 khi PostgreSQL không truy cập được. Để kiểm tra nhánh lỗi, mở terminal khác, tạm đặt `$env:DATABASE_URL = 'postgresql://invalid:invalid@127.0.0.1:1/invalid?sslmode=disable'`, dừng API đang chạy rồi khởi động API từ terminal đó. Sau khi kiểm tra, chạy `Remove-Item Env:DATABASE_URL` và khởi động lại API.
 
+## Cấu trúc mã nguồn MVC
+
+- **Model** nằm trong `apps/api/src/models` và `apps/desktop/src/models`. Các service NestJS xử lý nghiệp vụ và truy vấn PostgreSQL. Model desktop định nghĩa kiểu dữ liệu và gửi yêu cầu tới API.
+- **View** nằm trong `apps/desktop/src/views`, gồm các thành phần React, cấu hình hiển thị danh mục và CSS theo màn hình. Next.js dùng `apps/desktop/app` để khai báo route và layout.
+- **Controller** nằm trong `apps/api/src/controllers` và `apps/desktop/src/controllers`. Controller NestJS nhận yêu cầu HTTP, khai báo Swagger và gọi service. Các hook desktop xử lý phiên, điều hướng và thao tác dữ liệu cho View.
+
+Luồng chính đi từ View qua hook desktop và API client đến controller NestJS. Controller gọi Model để đọc hoặc ghi PostgreSQL rồi trả JSON cho desktop.
+
 ## API Giai đoạn 1
-
-Từ thư mục gốc của repo, chạy migration trên PostgreSQL phát triển. Chỉ chạy seed trên cơ sở dữ liệu thử nghiệm nếu cần hai đơn vị, hai DC và hai ứng dụng mẫu.
-
-```powershell
-npm.cmd run db:migrate
-npm.cmd run db:seed
-```
-
-Tạo tài khoản Quản trị đầu tiên bằng mật khẩu từ 12 đến 256 ký tự. Lệnh dưới đây đọc mật khẩu qua lời nhắc PowerShell và xóa biến môi trường sau khi chạy.
-
-```powershell
-$env:LCIT_ADMIN_USERNAME = 'lcit-admin'
-$env:LCIT_ADMIN_DISPLAY_NAME = 'Quản trị LCIT'
-$lcitPassword = Read-Host 'Mật khẩu Quản trị' -AsSecureString
-$env:LCIT_ADMIN_PASSWORD = [System.Net.NetworkCredential]::new('', $lcitPassword).Password
-try { npm.cmd run db:bootstrap-admin }
-finally { Remove-Item Env:LCIT_ADMIN_PASSWORD; Remove-Variable lcitPassword }
-npm.cmd run dev:api
-```
 
 Trong Swagger UI tại `http://127.0.0.1:4000/docs`, gọi `POST /api/v1/auth/login`, rồi nhập `token` vào **Authorize** để gọi API bảo vệ. Token hết hạn sau tám giờ. `POST /api/v1/auth/logout` thu hồi phiên hiện tại. Đổi mật khẩu hoặc khóa tài khoản thu hồi các phiên của tài khoản đó. Đăng nhập giới hạn năm lượt theo tên đăng nhập và 60 lượt theo địa chỉ kết nối trong mỗi cửa sổ 15 phút. Nếu API đặt sau reverse proxy, cân nhắc giới hạn theo địa chỉ kết nối khi nhiều người dùng dùng chung một proxy.
 
@@ -71,11 +80,13 @@ Giao diện Giai đoạn 1 dùng chung các màn hình cho trình duyệt và Ta
 
 ## Build và chạy ứng dụng Windows
 
+Để chạy bản Tauri, khởi động API như ở bước 3, sau đó chạy `npm.cmd run desktop:dev` trong cửa sổ PowerShell riêng.
+
 ```powershell
-npm run typecheck
-npm run build
-npm run desktop:dev
-npm run desktop:build
+npm.cmd run typecheck
+npm.cmd run build
+npm.cmd run desktop:dev
+npm.cmd run desktop:build
 ```
 
 `npm run build` xuất giao diện tĩnh vào `apps/desktop/out`. Hai lệnh `desktop:*` cần Rust toolchain MSVC, Visual Studio Build Tools với workload **Desktop development with C++**, Windows SDK và WebView2. Kiểm tra Rust bằng `rustc -V` và `cargo -V`, MSVC bằng `cl` trong Developer PowerShell, WebView2 tại **Settings → Apps → Installed apps**. Bản Windows dùng trình cài NSIS.
