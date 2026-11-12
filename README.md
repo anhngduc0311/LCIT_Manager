@@ -12,12 +12,9 @@ Nền tảng phát triển cho ứng dụng quản lý hạ tầng. Desktop dùn
 node -v
 npm.cmd -v
 npm.cmd install
-if (-not (Test-Path apps/api/.env.local)) {
-    Copy-Item apps/api/.env.example apps/api/.env.local
-}
 ```
 
-Mở `apps/api/.env.local` và thay giá trị mẫu của `DATABASE_URL` bằng chuỗi kết nối Neon của môi trường phát triển. Chỉ đưa tệp `.env.example` chứa cấu hình mẫu vào Git.
+API đọc cấu hình từ `apps/api/.env.example`. Tệp này đã chứa `DATABASE_URL` của database Neon dùng cho phát triển, nên không cần tạo `.env.local`. Tệp này chứa mật khẩu database, vì vậy chỉ giữ repo ở chế độ riêng tư và đổi mật khẩu Neon khi có người rời nhóm.
 
 ```powershell
 npm.cmd run db:migrate
@@ -71,6 +68,11 @@ Trong Swagger UI tại `http://127.0.0.1:4000/docs`, gọi `POST /api/v1/auth/lo
 | `/applications/{id}/servers/{targetId}`, `/applications/{id}/domains/{targetId}`, `/applications/{id}/dns-records/{targetId}`, `/domains/{id}/servers/{targetId}` | Quản trị dùng `PUT` và `DELETE` để quản lý liên kết. Gửi `version` của ứng dụng hoặc tên miền. |
 | `/search?q=...` | Trả ứng dụng cùng đơn vị, người phụ trách, máy chủ, DC, địa chỉ và phạm vi mạng, tên miền đã lọc quyền. IP và hostname/tên miền đầy đủ khớp chính xác. Từ khóa văn bản có thể khớp một phần tên ứng dụng hoặc đơn vị. |
 | `/audit-events` | Quản trị xem nhật ký đăng nhập, thay đổi phân công, tài khoản và danh mục. |
+| `/attachments?applicationId=...` | `GET` liệt kê tệp khả dụng của ứng dụng trong phạm vi xem, kèm `canUpload` và `canDownload`. `POST` với `fileName` trên query và nội dung tệp là body `application/octet-stream`. Quản trị và Chuyên viên được phân công mới tải lên được. |
+| `/attachments/{id}/download`, `/attachments/{id}/archive` | Quản trị luôn tải được. Lãnh đạo và Chuyên viên cần quyền `attachments.download` và tệp nằm trong phạm vi. `POST .../archive` ẩn tệp và giữ nội dung để phục hồi. |
+| `/users/{id}/permissions/{permission}` | Quản trị cấp quyền bằng `PUT` hoặc thu hồi bằng `DELETE`. Các quyền là `attachments.download` và `reports.export`. Quyền chưa cấp thì bị từ chối. |
+
+**Tệp đính kèm (T2.1).** Nội dung tệp lưu ở `ATTACHMENTS_DIR`, mặc định `apps/api/storage/attachments`, và không được commit. Giới hạn mặc định là 20 MiB (`ATTACHMENT_MAX_BYTES`). Các định dạng được nhận: pdf, png, jpg, docx, xlsx, pptx, doc, xls, txt và csv. API kiểm tra chữ ký đầu tệp khớp với phần mở rộng. Tệp được ghi qua hai bước: tạo bản ghi chờ, rồi lưu nội dung và chuyển sang khả dụng. API tự dọn bản ghi chờ quá `ATTACHMENT_PENDING_TTL_MINUTES` (mặc định 60 phút) và tệp mồ côi mỗi 15 phút. Có thể chạy tay bằng `npm.cmd run attachments:cleanup --workspace @lcit/api`. Tải lên, tải xuống (kể cả bị từ chối), lưu trữ và cấp/thu hồi quyền đều ghi nhật ký. Khi sao lưu, cần sao lưu cả PostgreSQL và thư mục này.
 
 Lãnh đạo thấy danh mục theo đơn vị được cấp. Chuyên viên thấy ứng dụng được phân công và tài nguyên liên kết trong phạm vi. Chuyên viên có thể sửa `name`, `description` và `status` của ứng dụng được phân công. `serviceType` nhận `ordered`, `monitoring` hoặc `operations`. Guard phiên nằm trong `apps/api/src/guards/session.guard.ts`. Các hàm lọc `applicationScope`, `serverScope`, `domainScope` nằm trong `apps/api/src/models/access.ts`. Các thao tác ghi của người B có thể gọi `recordAudit` trong cùng transaction.
 

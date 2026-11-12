@@ -3,6 +3,7 @@ import { useCatalogDetail, useCatalogList } from '../controllers/use-catalog';
 import { errorText, useRemote } from '../controllers/use-remote';
 import { Page, RecordItem, RequestApi, Role } from '../models/api';
 import { Kind } from '../models/catalog';
+import { Attachments, Permissions } from './attachments';
 import { catalogs, childGroups, Field } from './catalog-config';
 
 const itemTitle = (row: RecordItem) => String(row.name ?? row.hostname ?? row.displayName ?? row.username ?? row.id);
@@ -164,6 +165,8 @@ export function Detail({ kind, id, api, role, open, back }: { kind: Kind; id: st
         mutate={(url, method) => mutate(url, method, kind === 'users' ? undefined : { version: item.version })} />)}</div>}
       {kind === 'applications' && <DnsLinks api={api} path={`${path}/dns-records`} ids={asIds(item.dnsRecordIds)}
         mutate={(url, method) => mutate(url, method, { version: item.version })} canEdit={admin} />}
+      {kind === 'applications' && <Attachments api={api} applicationId={item.id} />}
+      {kind === 'users' && admin && item.role !== 'admin' && <Permissions api={api} userId={item.id} />}
       {childGroups[kind]?.filter((group) => admin || ['addresses', 'dnsRecords'].includes(group.key)).map((group) => {
         const records = (item[group.key] ?? []) as RecordItem[];
         const adding = editing === group.path;
