@@ -15,7 +15,7 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.enableShutdownHooks();
   app.useGlobalFilters(new ApiExceptionFilter());
-  app.enableCors({ origin: origins, exposedHeaders: ['X-Request-Id'] });
+  app.enableCors({ origin: origins, exposedHeaders: ['X-Request-Id', 'Content-Disposition'] });
   const config = new DocumentBuilder()
     .setTitle('LCIT Manager API')
     .setVersion('0.1.0')
