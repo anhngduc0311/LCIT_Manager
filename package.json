@@ -1,0 +1,16 @@
+{
+  "name": "lcit-manager",
+  "private": true,
+  "version": "0.1.0",
+  "engines": { "node": ">=22" },
+  "workspaces": ["apps/api", "apps/desktop"],
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "typecheck": "npm run typecheck --workspaces",
+    "dev:api": "npm run dev --workspace @lcit/api",
+    "dev:desktop": "npm run dev --workspace @lcit/desktop",
+    "desktop:dev": "npm run tauri --workspace @lcit/desktop -- dev",
+    "desktop:build": "npm run tauri --workspace @lcit/desktop -- build",
+    "db:migrate": "npm run db:migrate --workspace @lcit/api"
+  }
+}

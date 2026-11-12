@@ -1,0 +1,18 @@
+{
+  "organizations": [
+    { "code": "ORG-A", "name": "Đơn vị Mẫu A" },
+    { "code": "ORG-B", "name": "Đơn vị Mẫu B" }
+  ],
+  "dataCenters": [
+    { "code": "DC-A", "name": "Trung tâm dữ liệu Mẫu A" },
+    { "code": "DC-B", "name": "Trung tâm dữ liệu Mẫu B" }
+  ],
+  "applications": [
+    { "code": "APP-A", "name": "Cổng Mẫu A", "organizationCode": "ORG-A", "serverCodes": ["SRV-A"], "domain": "portal-a.example.test" },
+    { "code": "APP-B", "name": "Cổng Mẫu B", "organizationCode": "ORG-B", "serverCodes": ["SRV-B"], "domain": "portal-b.example.test" }
+  ],
+  "servers": [
+    { "code": "SRV-A", "hostname": "app-a.example.test", "dataCenterCode": "DC-A", "networkScope": "LAN-A", "privateIp": "10.42.0.15" },
+    { "code": "SRV-B", "hostname": "app-b.example.test", "dataCenterCode": "DC-B", "networkScope": "LAN-B", "privateIp": "10.42.0.15" }
+  ]
+}

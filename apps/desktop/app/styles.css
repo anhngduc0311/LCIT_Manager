@@ -1,0 +1,38 @@
+:root {
+  font-family: Inter, "Segoe UI", system-ui, sans-serif;
+  color: #17283a;
+  background: #edf3f8;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; }
+main { max-width: 720px; padding: 40px 24px; margin: 0 auto; }
+header { color: #075783; font-weight: 750; margin-bottom: 20px; }
+
+section {
+  background: #fff;
+  border: 1px solid #d1e1ed;
+  border-radius: 16px;
+  padding: clamp(20px, 5vw, 36px);
+}
+
+h1 { font-size: 1.75rem; margin: 0 0 24px; }
+dl { display: grid; gap: 16px; margin: 0 0 24px; }
+dt { color: #43596d; font-size: 0.9rem; margin-bottom: 4px; }
+dd { margin: 0; overflow-wrap: anywhere; }
+.ready { color: #156039; }
+.unavailable, .offline { color: #9e391d; }
+
+button {
+  padding: 10px 16px;
+  border: 0;
+  border-radius: 8px;
+  background: #075783;
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button:disabled { opacity: 0.65; cursor: wait; }
+button:focus-visible { outline: 3px solid #247eb3; outline-offset: 3px; }
