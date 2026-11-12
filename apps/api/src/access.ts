@@ -1,0 +1,91 @@
+import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
+import { createHash } from 'node:crypto';
+import { ApiError, ApiRequest, invalid, requestId, text } from './api-contract';
+import { Database } from './database';
+
+export const roles = ['admin', 'leader', 'specialist'] as const;
+export const accountStatuses = ['active', 'locked'] as const;
+export type Role = typeof roles[number];
+
+export interface Actor {
+  id: string;
+  username: string;
+  displayName: string;
+  role: Role;
+}
+
+export const actorSchema = { type: 'object', required: ['id', 'username', 'displayName', 'role'], properties: {
+  id: { type: 'string', format: 'uuid' }, username: { type: 'string' }, displayName: { type: 'string' },
+  role: { type: 'string', enum: [...roles] },
+} };
+
+export interface SessionRequest extends ApiRequest {
+  actor: Actor;
+  sessionHash: string;
+}
+
+export function sha256(value: string) {
+  return createHash('sha256').update(value).digest('hex');
+}
+
+export function usernameOf(value: unknown) {
+  const username = text(value, 'username', 64, 3).toLowerCase();
+  if (!/^[a-z0-9][a-z0-9._-]{2,63}$/.test(username)) invalid('username', 'Use ASCII letters, numbers, dots, underscores or hyphens.');
+  return username;
+}
+
+@Injectable()
+export class SessionGuard implements CanActivate {
+  constructor(private readonly db: Database) {}
+
+  async canActivate(context: ExecutionContext) {
+    const http = context.switchToHttp();
+    const request = http.getRequest<SessionRequest>();
+    http.getResponse().setHeader('X-Request-Id', requestId(request));
+    http.getResponse().setHeader('Cache-Control', 'no-store');
+    const token = request.headers.authorization?.match(/^Bearer ([a-z0-9_-]{43})$/i)?.[1];
+    if (!token) throw new ApiError(401, 'INVALID_SESSION', 'Sign in to continue.');
+    request.sessionHash = sha256(token);
+    const { rows: [actor] } = await this.db.query<Actor>(`
+      SELECT u.id, u.username, u.display_name AS "displayName", u.role
+      FROM lcit.sessions s JOIN lcit.users u ON u.id = s.user_id
+      WHERE s.token_hash = $1 AND s.revoked_at IS NULL AND s.expires_at > now() AND u.status = 'active'
+    `, [request.sessionHash]);
+    if (!actor) throw new ApiError(401, 'INVALID_SESSION', 'Sign in to continue.');
+    request.actor = actor;
+    return true;
+  }
+}
+
+export function requireAdmin(actor: Actor) {
+  if (actor.role !== 'admin') throw new ApiError(403, 'FORBIDDEN', 'Administrator access is required.');
+}
+
+// Aliases and parameter positions are supplied by API code. The UUID is always a query parameter.
+export function applicationScope(role: Role, alias: string, actorParam: string) {
+  if (role === 'admin') return `${actorParam}::uuid IS NOT NULL`;
+  if (role === 'leader') return `EXISTS (SELECT 1 FROM lcit.user_organizations uo
+    JOIN lcit.organizations org ON org.id = uo.organization_id AND org.archived_at IS NULL
+    WHERE uo.user_id = ${actorParam} AND uo.organization_id = ${alias}.organization_id)`;
+  return `EXISTS (SELECT 1 FROM lcit.app_assignments aa
+    WHERE aa.user_id = ${actorParam} AND aa.application_id = ${alias}.id)`;
+}
+
+export function serverScope(role: Role, alias: string, actorParam: string) {
+  if (role === 'admin') return `${actorParam}::uuid IS NOT NULL`;
+  return `EXISTS (SELECT 1 FROM lcit.app_servers rel JOIN lcit.applications app ON app.id = rel.application_id
+    WHERE rel.server_id = ${alias}.id AND app.archived_at IS NULL AND ${applicationScope(role, 'app', actorParam)})`;
+}
+
+export function domainScope(role: Role, alias: string, actorParam: string) {
+  if (role === 'admin') return `${actorParam}::uuid IS NOT NULL`;
+  return `EXISTS (SELECT 1 FROM lcit.applications app
+    WHERE app.archived_at IS NULL AND ${applicationScope(role, 'app', actorParam)} AND (
+      EXISTS (SELECT 1 FROM lcit.app_domains rel WHERE rel.application_id = app.id AND rel.domain_id = ${alias}.id)
+      OR EXISTS (SELECT 1 FROM lcit.app_dns_records rel JOIN lcit.dns_records dns ON dns.id = rel.dns_record_id
+        WHERE rel.application_id = app.id AND dns.domain_id = ${alias}.id)
+      OR EXISTS (SELECT 1 FROM lcit.app_servers rel JOIN lcit.domain_servers ds ON ds.server_id = rel.server_id
+        JOIN lcit.servers srv ON srv.id = ds.server_id AND srv.archived_at IS NULL
+        WHERE rel.application_id = app.id AND ds.domain_id = ${alias}.id)
+    ))`;
+}

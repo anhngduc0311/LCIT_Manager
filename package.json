@@ -11,6 +11,8 @@
     "dev:desktop": "npm run dev --workspace @lcit/desktop",
     "desktop:dev": "npm run tauri --workspace @lcit/desktop -- dev",
     "desktop:build": "npm run tauri --workspace @lcit/desktop -- build",
-    "db:migrate": "npm run db:migrate --workspace @lcit/api"
+    "db:migrate": "npm run db:migrate --workspace @lcit/api",
+    "db:seed": "npm run db:seed --workspace @lcit/api",
+    "db:bootstrap-admin": "npm run db:bootstrap-admin --workspace @lcit/api"
   }
 }

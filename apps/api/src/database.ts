@@ -1,5 +1,5 @@
-import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
-import { Pool } from 'pg';
+import { Injectable, Logger, OnModuleDestroy, ServiceUnavailableException } from '@nestjs/common';
+import { Pool, PoolClient, QueryResultRow } from 'pg';
 
 export function createPool() {
   const connectionString = process.env.DATABASE_URL;
@@ -26,10 +26,36 @@ export class Database implements OnModuleDestroy {
   }
 
   async ping() {
-    if (!this.pool) {
-      throw new Error('DATABASE_URL is required.');
+    await this.query('SELECT 1');
+  }
+
+  private connectionPool() {
+    if (!this.pool) throw new ServiceUnavailableException('Database unavailable.');
+    return this.pool;
+  }
+
+  query<Row extends QueryResultRow = QueryResultRow>(sql: string, values: unknown[] = []) {
+    return this.connectionPool().query<Row>(sql, values);
+  }
+
+  async transaction<T>(work: (client: PoolClient) => Promise<T>): Promise<T> {
+    const client = await this.connectionPool().connect();
+    let discard = false;
+    try {
+      await client.query('BEGIN');
+      const result = await work(client);
+      await client.query('COMMIT');
+      return result;
+    } catch (error) {
+      try {
+        await client.query('ROLLBACK');
+      } catch {
+        discard = true;
+      }
+      throw error;
+    } finally {
+      client.release(discard);
     }
-    await this.pool.query('SELECT 1');
   }
 
   async onModuleDestroy() {

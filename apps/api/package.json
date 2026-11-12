@@ -5,9 +5,12 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit",
+    "test": "npm run build && node --test test/phase1.test.cjs",
     "dev": "npm run build && npm start",
-    "start": "node --env-file-if-exists=.env dist/main.js",
-    "db:migrate": "npm run build && node --env-file-if-exists=.env dist/migrate.js"
+    "start": "node --env-file-if-exists=.env --env-file-if-exists=.env.local dist/main.js",
+    "db:migrate": "npm run build && node --env-file-if-exists=.env --env-file-if-exists=.env.local dist/migrate.js",
+    "db:seed": "npm run build && node --env-file-if-exists=.env --env-file-if-exists=.env.local dist/seed.js",
+    "db:bootstrap-admin": "npm run build && node --env-file-if-exists=.env --env-file-if-exists=.env.local dist/bootstrap-admin.js"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.0",

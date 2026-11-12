@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { ApiExceptionFilter } from './api-contract';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
@@ -13,10 +14,12 @@ async function bootstrap() {
 
   const app = await NestFactory.create(AppModule);
   app.enableShutdownHooks();
-  app.enableCors({ origin: origins });
+  app.useGlobalFilters(new ApiExceptionFilter());
+  app.enableCors({ origin: origins, exposedHeaders: ['X-Request-Id'] });
   const config = new DocumentBuilder()
     .setTitle('LCIT Manager API')
     .setVersion('0.1.0')
+    .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'opaque' })
     .build();
   SwaggerModule.setup('docs', app, () => SwaggerModule.createDocument(app, config));
   await app.listen(port, host);
