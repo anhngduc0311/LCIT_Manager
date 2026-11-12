@@ -63,8 +63,8 @@ code { overflow-wrap: anywhere; font-size: .88em; }
 .rows li { border-bottom: 1px solid var(--line); padding: 1rem .6rem; overflow-wrap: anywhere; }
 .rows li:hover { background: #f8fafc; }
 .rows li > div { min-width: 0; }
-.catalog-panel > .rows { border-top: 1px solid var(--line); }
-.catalog-panel > .rows > li > .text-button { font-size: .95rem; }
+.catalog-panel .rows { border-top: 1px solid var(--line); }
+.catalog-panel .rows > li > .text-button { font-size: .95rem; }
 .search-panel { overflow: hidden; }
 .search-heading { background: linear-gradient(115deg,#edf7f8,#f6f8fc); padding: clamp(1.3rem,3vw,2.5rem); border: 1px solid #e2eff1; border-radius: 12px; position: relative; }
 .search-heading h1 { font-size: clamp(1.8rem,3vw,2.65rem); margin: .5rem 0 .85rem; line-height: 1.32; }
