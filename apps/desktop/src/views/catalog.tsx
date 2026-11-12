@@ -1,10 +1,12 @@
-import { FormEvent, useState } from 'react';
+import { FormEvent, Fragment, useState } from 'react';
 import { useCatalogDetail, useCatalogList } from '../controllers/use-catalog';
 import { errorText, useRemote } from '../controllers/use-remote';
 import { Page, RecordItem, RequestApi, Role } from '../models/api';
 import { Kind } from '../models/catalog';
 import { Attachments, Permissions } from './attachments';
-import { catalogs, childGroups, Field } from './catalog-config';
+import { catalogs, childGroups, Field, roleNames } from './catalog-config';
+import accountStyles from './accounts.module.css';
+import loadingStyles from './catalog-loading.module.css';
 
 const itemTitle = (row: RecordItem) => String(row.name ?? row.hostname ?? row.displayName ?? row.username ?? row.id);
 const asIds = (value: unknown) => Array.isArray(value) ? value as string[] : [];
@@ -17,9 +19,9 @@ export function Pager({ page, pageSize, total, change }: { page: number; pageSiz
   </div></div>;
 }
 
-function Picker({ api, kind, value, change, required }: { api: RequestApi; kind: Kind; value: string; change: (value: string) => void; required?: boolean }) {
+function Picker({ api, kind, value, change, required, initialLabel = '' }: { api: RequestApi; kind: Kind; value: string; change: (value: string) => void; required?: boolean; initialLabel?: string }) {
   const [page, setPage] = useState(1);
-  const [label, setLabel] = useState('');
+  const [label, setLabel] = useState(initialLabel);
   const result = useRemote<Page<RecordItem>>(api, `/${kind}?page=${page}`);
   const detail = useRemote<RecordItem>(api, value && !result?.data?.items.some((item) => item.id === value) ? `/${kind}/${value}` : '');
   return <span className="picker"><select aria-label={`Chọn ${catalogs[kind].title.toLowerCase()}`} required={required} value={value} onChange={(event) => {
@@ -33,8 +35,8 @@ function Picker({ api, kind, value, change, required }: { api: RequestApi; kind:
   </span>;
 }
 
-function EditForm({ api, fields, item, save, cancel }: {
-  api: RequestApi; fields: Field[]; item?: RecordItem; save: (body: Record<string, unknown>) => Promise<void>; cancel: () => void;
+function EditForm({ api, fields, item, save, cancel, title }: {
+  api: RequestApi; fields: Field[]; item?: RecordItem; save: (body: Record<string, unknown>) => Promise<void>; cancel: () => void; title?: string;
 }) {
   const [values, setValues] = useState(() => Object.fromEntries(fields.map(({ key }) => [key, String(item?.[key] ?? '')])));
   const [busy, setBusy] = useState(false);
@@ -52,12 +54,13 @@ function EditForm({ api, fields, item, save, cancel }: {
     try { await save(payload); } catch (error) { setError(errorText(error)); }
     finally { setBusy(false); }
   }
-  return <form className="editor" onSubmit={submit}><div className="form-grid">
+  return <form className="editor" onSubmit={submit}>{title && <h2 className={accountStyles.formTitle}>{title}</h2>}<div className="form-grid">
     {fields.map(({ key, label, type, options, required, source }) => {
       const value = values[key] ?? '';
       const change = (newValue: string) => setValues((previous) => ({ ...previous, [key]: newValue }));
       const needed = required || (type === 'password' && !item);
-      return <label key={key}>{label}{source ? <Picker api={api} kind={source} value={value} change={change} required={needed} /> :
+      return <label key={key}>{label}{source ? <Picker api={api} kind={source} value={value} change={change} required={needed}
+        initialLabel={key === 'ownerId' ? String(item?.ownerDisplayName ?? '') : undefined} /> :
         options ? <select value={value} required={needed} onChange={(event) => change(event.target.value)}><option value="" disabled={Boolean(item?.[key])}>Chọn</option>
           {options.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select> :
         type === 'area' ? <textarea rows={3} value={value} required={needed} onChange={(event) => change(event.target.value)} /> :
@@ -68,31 +71,125 @@ function EditForm({ api, fields, item, save, cancel }: {
   <div className="actions"><button disabled={busy}>{busy ? 'Đang lưu…' : 'Lưu'}</button><button type="button" className="secondary" disabled={busy} onClick={cancel}>Hủy</button></div></form>;
 }
 
-function ResourceName({ api, kind, id, open }: { api: RequestApi; kind: Kind; id: string; open?: (kind: Kind, id: string) => void }) {
+function ResourceName({ api, kind, id, open, fallback }: { api: RequestApi; kind: Kind; id: string; open?: (kind: Kind, id: string) => void; fallback?: string }) {
   const result = useRemote<RecordItem>(api, `/${kind}/${id}`);
-  if (result?.error) return <span className="muted">{result.error}</span>;
+  if (result?.error) return <span className="muted">{fallback || result.error}</span>;
   if (!result?.data) return <span className="muted">Đang tải…</span>;
   return open ? <button className="text-button" onClick={() => open(kind, id)}>{itemTitle(result.data)}</button> : <span>{itemTitle(result.data)}</span>;
 }
 
-export function Catalog({ kind, api, role, open }: { kind: Kind; api: RequestApi; role: Role; open: (kind: Kind, id: string) => void }) {
+function ReloadButton({ loading, disabled, reload }: { loading: boolean; disabled?: boolean; reload: () => void }) {
+  return <button type="button" className={`secondary ${loadingStyles.reload}`} disabled={loading || disabled} onClick={reload}>
+    {loading && <span className={loadingStyles.spinner} aria-hidden="true" />}
+    {loading ? 'Đang tải…' : 'Tải lại'}
+  </button>;
+}
+
+export function Catalog({ kind, api, role, actorId, open }: { kind: Kind; api: RequestApi; role: Role; actorId: string; open: (kind: Kind, id: string) => void }) {
   const [creating, setCreating] = useState(false);
-  const { setPage, listing, reload, create } = useCatalogList(api, kind);
+  const [editing, setEditing] = useState('');
+  const [confirming, setConfirming] = useState('');
+  const { setPage, listing, reload, create, saveItem, removeItem, removing, removeError } = useCatalogList(api, kind);
   const config = catalogs[kind];
-  return <section className="panel"><div className="section-title"><h1>{config.title}</h1><div className="actions">
+  const manageAccounts = kind === 'users' && role === 'admin';
+  const accountPage = listing?.data;
+  const loading = !listing;
+
+  function resetAccountActions() {
+    setConfirming('');
+    setEditing('');
+  }
+
+  if (manageAccounts) return <section className={`panel ${accountStyles.panel}`} aria-labelledby="accounts-title">
+    <header className={accountStyles.header}>
+      <div><h1 id="accounts-title">Tài khoản</h1><p>Quản lý người dùng và quyền truy cập.</p></div>
+      <div className="actions">
+        <ReloadButton loading={loading} disabled={removing} reload={() => { resetAccountActions(); reload(); }} />
+        <button disabled={removing || creating} onClick={() => { resetAccountActions(); setCreating(true); }}>+ Thêm tài khoản</button>
+      </div>
+    </header>
+    {creating && <EditForm api={api} fields={config.fields} title="Thêm tài khoản" cancel={() => setCreating(false)} save={async (body) => {
+      const item = await create(body);
+      open(kind, item.id);
+    }} />}
+    <span className={loadingStyles.announcement} role="status">{loading ? 'Đang tải tài khoản…' : ''}</span>
+    {listing?.error && <p className={`error ${accountStyles.feedback}`} role="alert">{listing.error}</p>}
+    {removeError && <p className={`error ${accountStyles.feedback}`} role="alert">{removeError}</p>}
+    {(loading || accountPage) && <div className={accountStyles.list} aria-busy={loading}>
+      {accountPage?.items.length === 0 ? <p className="empty">Chưa có tài khoản.</p> :
+        <div className={accountStyles.scroll} tabIndex={loading ? undefined : 0} role="region" aria-label="Danh sách tài khoản">
+          <table className={accountStyles.table} aria-label="Danh sách tài khoản">
+            <thead><tr><th scope="col">Người dùng</th><th scope="col">Vai trò</th><th scope="col">Trạng thái</th><th scope="col">Thao tác</th></tr></thead>
+            <tbody>{loading && [0, 1, 2].map((row) => <tr key={row} className={accountStyles.placeholder} aria-hidden="true">
+              <td><div className={accountStyles.identity}>
+                <span className={`${accountStyles.skeletonAvatar} ${loadingStyles.skeleton}`} />
+                <div><span className={`${loadingStyles.skeleton} ${accountStyles.skeletonName}`} /><span className={`${loadingStyles.skeleton} ${accountStyles.skeletonUsername}`} /></div>
+              </div></td>
+              <td><span className={`${loadingStyles.skeleton} ${accountStyles.skeletonBadge}`} /></td>
+              <td><span className={`${loadingStyles.skeleton} ${accountStyles.skeletonBadge}`} /></td>
+              <td><div className={accountStyles.rowActions}><span className={`${loadingStyles.skeleton} ${accountStyles.skeletonAction}`} /><span className={`${loadingStyles.skeleton} ${accountStyles.skeletonAction}`} /></div></td>
+            </tr>)}{accountPage?.items.map((row) => {
+              const name = itemTitle(row);
+              const username = String(row.username ?? '');
+              const accountRole = String(row.role ?? '');
+              const status = String(row.status ?? '');
+              const isCurrent = row.id === actorId;
+              return <Fragment key={row.id}>
+                <tr>
+                  <th scope="row"><div className={accountStyles.identity}>
+                    <span className={accountStyles.initial} aria-hidden="true">{name.trim().slice(0, 1).toLocaleUpperCase('vi')}</span>
+                    <div>
+                      <button className={`text-button ${accountStyles.name}`} onClick={() => open(kind, row.id)}>{name}</button>
+                      <span className={accountStyles.username}>{username}{isCurrent && <span className={accountStyles.current}>Bạn</span>}</span>
+                    </div>
+                  </div></th>
+                  <td><span className={accountStyles.role} data-role={accountRole}>{roleNames[accountRole as Role] ?? (accountRole || '—')}</span></td>
+                  <td><span className={accountStyles.status} data-status={status}>{status === 'active' ? 'Hoạt động' : status === 'locked' ? 'Đã khóa' : '—'}</span></td>
+                  <td><div className={accountStyles.rowActions}>
+                    <button type="button" className="secondary" disabled={removing || creating || editing === row.id} aria-label={`Sửa tài khoản ${username}`} onClick={() => { setConfirming(''); setEditing(row.id); }}>Sửa</button>
+                    {!isCurrent && <button type="button" className="secondary account-delete" disabled={removing || creating || Boolean(editing)} aria-label={`Xóa tài khoản ${username}`} aria-expanded={confirming === row.id} onClick={() => setConfirming(confirming === row.id ? '' : row.id)}>Xóa</button>}
+                  </div></td>
+                </tr>
+                {editing === row.id && <tr className={accountStyles.expanded}><td colSpan={4}>
+                  <EditForm key={row.version} api={api} fields={config.fields} item={row} title={`Sửa tài khoản ${username}`} cancel={() => setEditing('')} save={async (body) => { await saveItem(row, body); setEditing(''); }} />
+                </td></tr>}
+                {confirming === row.id && <tr className={accountStyles.expanded}><td colSpan={4}>
+                  <div className={accountStyles.confirm} role="group" aria-label="Xác nhận xóa tài khoản">
+                    <div><h2>Xóa tài khoản {username}?</h2><p>Tài khoản sẽ bị đăng xuất và mất quyền truy cập.</p></div>
+                    <div className="actions">
+                      <button type="button" className="secondary" disabled={removing} onClick={() => setConfirming('')}>Hủy</button>
+                      <button type="button" className={accountStyles.danger} disabled={removing} onClick={async () => { await removeItem(row); setConfirming(''); }}>{removing ? 'Đang xóa…' : 'Xác nhận xóa'}</button>
+                    </div>
+                  </div>
+                </td></tr>}
+              </Fragment>;
+            })}</tbody>
+          </table>
+        </div>}
+      {accountPage && <Pager {...accountPage} change={(page) => { if (!removing) { resetAccountActions(); setPage(page); } }} />}
+    </div>}
+  </section>;
+
+  return <section className="panel catalog-panel"><div className="section-title"><div><p className="eyebrow">DANH MỤC HỆ THỐNG</p><h1>{config.title}</h1><p className="page-description">Quản lý và tra cứu thông tin {config.title.toLocaleLowerCase('vi')}.</p></div><div className="actions">
     {role === 'admin' && !creating && <button onClick={() => setCreating(true)}>Thêm mới</button>}
-    <button className="secondary" onClick={reload}>Tải lại</button>
+    <ReloadButton loading={loading} reload={reload} />
   </div></div>
     {creating && <EditForm api={api} fields={config.fields} save={async (body) => {
       const item = await create(body); open(kind, item.id);
     }} cancel={() => setCreating(false)} />}
-    {!listing && <p role="status">Đang tải danh mục…</p>}
+    <span className={loadingStyles.announcement} role="status">{loading ? `Đang tải danh mục ${config.title.toLocaleLowerCase('vi')}…` : ''}</span>
     {listing?.error && <p className="error" role="alert">{listing.error}</p>}
-    {listing?.data && <>{listing.data.items.length === 0 ? <p className="empty">Chưa có dữ liệu trong phạm vi của bạn.</p> :
+    <div aria-busy={loading} className={loadingStyles.catalogRows}>
+      {loading && <ul className="rows" aria-hidden="true">{[0, 1, 2].map((row) => <li key={row} className={loadingStyles.placeholder}>
+        <span className={`${loadingStyles.skeleton} ${loadingStyles.rowTitle}`} />
+        <span className={`${loadingStyles.skeleton} ${loadingStyles.rowCode}`} />
+      </li>)}</ul>}
+      {listing?.data && <>{listing.data.items.length === 0 ? <p className="empty">Chưa có dữ liệu trong phạm vi của bạn.</p> :
       <ul className="rows">{listing.data.items.map((row) => <li key={row.id}>
         <button className="text-button" onClick={() => open(kind, row.id)}>{itemTitle(row)}</button>
         <span className="muted">{String(row.code ?? row.username ?? row.renewalDate ?? '')}</span>
       </li>)}</ul>}<Pager {...listing.data} change={setPage} /></>}
+    </div>
   </section>;
 }
 
@@ -159,7 +256,8 @@ export function Detail({ kind, id, api, role, open, back }: { kind: Kind; id: st
     {(result?.error || error || assignment?.error) && <p className="error" role="alert">{result?.error || error || assignment?.error}</p>}
     {item && <>
       {editing === 'root' ? <EditForm key={item.version} item={item} api={api} fields={fields} cancel={() => setEditing('')} save={(body) => saveItem(body, item.version)} /> : <dl className="details">{config.fields.filter(({ key }) => item[key] != null).map(({ key, label, options, source }) =>
-        <div key={key}><dt>{label}</dt><dd>{source && (source !== 'users' || admin) ? <ResourceName api={api} kind={source} id={String(item[key])} open={open} /> :
+        <div key={key}><dt>{label}</dt><dd>{source && (source !== 'users' || admin) ? <ResourceName api={api} kind={source} id={String(item[key])} open={open}
+          fallback={key === 'ownerId' ? String(item.ownerDisplayName ?? '') : undefined} /> :
           options?.find(([value]) => value === item[key])?.[1] ?? (key === 'ownerId' ? String(item.ownerDisplayName ?? '—') : String(item[key]))}</dd></div>)}</dl>}
       {relations.length > 0 && <div className="related-grid">{relations.map((relation) => <RelationList key={`${relation.kind}:${revision}`} config={relation} api={api} open={open}
         mutate={(url, method) => mutate(url, method, kind === 'users' ? undefined : { version: item.version })} />)}</div>}

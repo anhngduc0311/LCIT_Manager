@@ -1,0 +1,26 @@
+.announcement { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.reload { display: inline-flex; align-items: center; gap: .45rem; }
+.reload:disabled { opacity: .8; }
+.spinner {
+  width: .9rem;
+  height: .9rem;
+  border: 2px solid #bcdadd;
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: catalog-spin .75s linear infinite;
+}
+@keyframes catalog-spin { to { transform: rotate(360deg); } }
+.skeleton {
+  display: block;
+  border: 0;
+  border-radius: 5px;
+  background: linear-gradient(100deg, #e9eef4 25%, #f5f8fb 48%, #e9eef4 72%);
+  background-size: 240% 100%;
+  animation: catalog-shimmer 1.45s ease-in-out infinite;
+}
+@keyframes catalog-shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+@media (prefers-reduced-motion: reduce) { .spinner, .skeleton { animation: none; } }
+.catalogRows .placeholder { min-height: 3.75rem; }
+.catalogRows .placeholder:hover { background: transparent; }
+.rowTitle { width: min(38%, 13rem); height: .85rem; }
+.rowCode { width: min(20%, 4rem); height: .75rem; }

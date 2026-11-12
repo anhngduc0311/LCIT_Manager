@@ -24,7 +24,7 @@ export class PermissionsService {
     const { rows: [row] } = await this.db.query<{ items: unknown[] }>(`
       SELECT COALESCE((SELECT json_agg(json_build_object('permission', p.permission, 'grantedAt', p.granted_at) ORDER BY p.permission)
         FROM lcit.user_permissions p WHERE p.user_id = u.id), '[]') AS items
-      FROM lcit.users u WHERE u.id = $1
+      FROM lcit.users u WHERE u.id = $1 AND u.deleted_at IS NULL
     `, [userId]);
     if (!row) missing();
     return row;
@@ -35,7 +35,7 @@ export class PermissionsService {
     const userId = uuid(rawUser);
     const permission = choice(rawPermission, 'permission', permissions);
     await this.db.transaction(async (client) => {
-      const { rowCount: exists } = await client.query('SELECT id FROM lcit.users WHERE id = $1 FOR KEY SHARE', [userId]);
+      const { rowCount: exists } = await client.query('SELECT id FROM lcit.users WHERE id = $1 AND deleted_at IS NULL FOR KEY SHARE', [userId]);
       if (!exists) missing();
       const { rowCount } = grant
         ? await client.query('INSERT INTO lcit.user_permissions (user_id, permission) VALUES ($1, $2) ON CONFLICT DO NOTHING', [userId, permission])

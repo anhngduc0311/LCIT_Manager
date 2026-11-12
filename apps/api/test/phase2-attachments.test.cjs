@@ -76,6 +76,12 @@ test('phase 2 attachments: permissions, limits, audit and recovery between write
   context.after(() => db.end());
   const existing = await db.query("SELECT to_regnamespace('lcit') AS schema");
   assert.equal(existing.rows[0].schema, null, 'Use a disposable database without an lcit schema.');
+  // Registered only after the check above, so the test never drops a schema it did not create.
+  // Lets the next test file reuse the same disposable database.
+  context.after(async () => {
+    const cleanup = new Pool({ connectionString: databaseUrl, enableChannelBinding: true, connectionTimeoutMillis: 5000 });
+    try { await cleanup.query('DROP SCHEMA IF EXISTS lcit CASCADE'); } finally { await cleanup.end(); }
+  });
 
   const { dir } = await withStore(context);
   const password = randomBytes(24).toString('hex');
@@ -220,6 +226,17 @@ test('phase 2 attachments: permissions, limits, audit and recovery between write
   await stat(path.join(dir, freshPending.slice(0, 2), `${freshPending}.part`));
   const { rows: [{ storage_key: keptKey }] } = await db.query('SELECT storage_key FROM lcit.attachments WHERE id = $1', [file.id]);
   await stat(path.join(dir, keptKey.slice(0, 2), keptKey));
+
+  // Deleting an account removes its grants; the deleted account is hidden from the permissions API.
+  await call('PUT', `/users/${leader.id}/permissions/reports.export`, { token: admin, status: 204 });
+  const leaderNow = await json('GET', `/users/${leader.id}`, { token: admin });
+  await call('DELETE', `/users/${leader.id}`, { token: admin, status: 204, body: { version: leaderNow.version } });
+  const { rows: [{ count: leftGrants }] } = await db.query('SELECT count(*)::int AS count FROM lcit.user_permissions WHERE user_id = $1', [leader.id]);
+  assert.equal(leftGrants, 0);
+  await call('GET', `/users/${leader.id}/permissions`, { token: admin, status: 404 });
+  await call('PUT', `/users/${leader.id}/permissions/attachments.download`, { token: admin, status: 404 });
+  // Files uploaded by a deleted account stay available.
+  await call('GET', `/attachments/${file.id}/download`, { token: admin });
 
   const { items: events } = await json('GET', '/audit-events?pageSize=100', { token: admin });
   const has = (action, outcome, actorId) => events.some((event) => event.action === action && event.outcome === outcome
