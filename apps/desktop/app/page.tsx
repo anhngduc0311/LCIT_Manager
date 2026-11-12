@@ -3,6 +3,7 @@
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { ApiFailure, apiUrl, Page, requestApi, RequestApi, Session } from './api';
 import { Catalog, catalogs, Detail, Kind, Pager, roleNames, useRemote } from './catalog-ui';
+import styles from './sign-in.module.css';
 
 const healthMessages = {
   checking: 'Đang kiểm tra kết nối', ready: 'API và cơ sở dữ liệu đang hoạt động',
@@ -21,8 +22,15 @@ function Health() {
       }).catch(() => { if (!controller.signal.aborted) setStatus('offline'); });
     return () => controller.abort();
   }, [attempt]);
-  return <aside className="health"><div><p role="status" className={status}><span className="status-dot" />{healthMessages[status]}</p><code>{apiUrl}</code></div>
-    <button className="secondary" disabled={status === 'checking'} onClick={() => { setStatus('checking'); setAttempt((value) => value + 1); }}>Kiểm tra lại</button></aside>;
+  return <aside className={styles.health} aria-label="Kết nối hệ thống">
+    <div className={styles.healthText}>
+      <p role="status"><span className={styles.statusDot} data-status={status} aria-hidden="true" />{healthMessages[status]}</p>
+      <code>{apiUrl}</code>
+    </div>
+    <button type="button" className={styles.retry} disabled={status === 'checking'} onClick={() => {
+      setStatus('checking'); setAttempt((value) => value + 1);
+    }}>Kiểm tra lại</button>
+  </aside>;
 }
 
 function SignIn({ onLogin, notice }: { onLogin: (session: Session) => void; notice: string }) {
@@ -36,13 +44,23 @@ function SignIn({ onLogin, notice }: { onLogin: (session: Session) => void; noti
     catch (error) { setError(error instanceof Error ? error.message : 'Không thể đăng nhập.'); }
     finally { setBusy(false); }
   }
-  return <main className="login-shell"><header className="brand"><span className="brand-mark" aria-hidden="true">L</span> LCIT Manager</header>
-    <section className="panel login-panel"><h1>Đăng nhập</h1>
-      <form onSubmit={submit}><label>Tên đăng nhập<input name="username" autoComplete="username" maxLength={64} required /></label>
-        <label>Mật khẩu<input name="password" type="password" autoComplete="current-password" maxLength={256} required /></label>
-        {(error || notice) && <p className="error" role="alert">{error || notice}</p>}
-        <button disabled={busy}>{busy ? 'Đang đăng nhập…' : 'Đăng nhập'}</button></form>
-    </section><Health /></main>;
+  return <main className={styles.shell}>
+    <div className={styles.surface}>
+      <header className={styles.brand}><span className={styles.mark} aria-hidden="true">L</span><span>LCIT Manager</span></header>
+      <section className={styles.card} aria-labelledby="sign-in-title">
+        <h1 id="sign-in-title">Đăng nhập</h1>
+        <form className={styles.form} onSubmit={submit} aria-busy={busy}>
+          <label htmlFor="sign-in-username">Tên đăng nhập</label>
+          <input id="sign-in-username" name="username" autoComplete="username" autoCapitalize="none" spellCheck={false} maxLength={64} required />
+          <label htmlFor="sign-in-password">Mật khẩu</label>
+          <input id="sign-in-password" name="password" type="password" autoComplete="current-password" maxLength={256} required />
+          {(error || notice) && <p className={styles.error} role="alert">{error || notice}</p>}
+          <button type="submit" className={styles.submit} disabled={busy}>{busy ? 'Đang đăng nhập…' : 'Đăng nhập'}</button>
+        </form>
+      </section>
+      <Health />
+    </div>
+  </main>;
 }
 
 interface SearchResult {
@@ -157,7 +175,7 @@ export default function Home() {
     </nav></aside><div className="work-area"><header className="account"><div><strong>{session.user.displayName}</strong><span>{roleNames[role]}</span></div>
       <button className="secondary" disabled={loggingOut} onClick={() => void logout()}>Đăng xuất</button></header>
     <main><div hidden={current.kind !== 'search'}><Search api={api} open={open} /></div>
-      {current.kind === 'search' ? null : current.kind === 'health' ? <section className="panel"><h1>Kết nối hệ thống</h1><Health /></section> :
+      {current.kind === 'search' ? null : current.kind === 'health' ? <section className={`panel ${styles.connectionPanel}`}><h1>Kết nối hệ thống</h1><Health /></section> :
       current.id ? <Detail key={`${current.kind}:${current.id}`} kind={current.kind} id={current.id} api={api} role={role} open={open} back={() => navigate({ kind: current.kind as Kind })} /> :
       <Catalog key={current.kind} kind={current.kind} api={api} role={role} open={open} />}</main></div></div>;
 }

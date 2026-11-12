@@ -36,16 +36,6 @@ code { overflow-wrap: anywhere; }
 .panel { background: var(--white); border: 1px solid var(--line); border-radius: .85rem; padding: clamp(1.05rem, 3vw, 2rem); min-width: 0; }
 .brand { display: flex; align-items: center; gap: .65rem; font-size: 1.14rem; font-weight: 750; }
 .brand-mark { display: grid; place-items: center; width: 2rem; height: 2rem; border-radius: .54rem; background: var(--primary); color: var(--white); }
-.login-shell { width: min(30rem, calc(100% - 2rem)); margin: clamp(2rem, 10vh, 7rem) auto 2rem; display: grid; gap: 1.1rem; }
-.login-panel form { display: grid; gap: 1rem; margin-top: 1.2rem; }
-.login-panel form > button { margin-top: .25rem; }
-.health { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .6rem 1rem; padding: .85rem 1rem; border: 1px solid var(--line); border-radius: .75rem; background: #f8fbfa; }
-.panel > .health { margin-top: 1rem; }
-.health p { display: flex; align-items: center; gap: .45rem; font-weight: 600; }
-.health code { color: var(--muted); font-size: .83rem; }
-.status-dot { flex: 0 0 .52rem; height: .52rem; border-radius: 50%; background: #84999a; }
-.ready .status-dot { background: #16816e; }
-.offline .status-dot, .unavailable .status-dot { background: #b04a33; }
 .workspace { display: grid; grid-template-columns: 13.3rem minmax(0, 1fr); min-height: 100dvh; }
 .sidebar { background: #142e35; color: #edf6f4; padding: 1.2rem .8rem; }
 .sidebar .brand { margin: 0 .45rem 1.25rem; white-space: nowrap; }

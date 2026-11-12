@@ -1,0 +1,101 @@
+.shell {
+  display: grid;
+  align-items: center;
+  min-height: 100dvh;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: clamp(1.25rem, 5vh, 3rem) 1rem;
+  background: radial-gradient(ellipse at 50% 0%, #e1f1eb, #f1f6f5 66%);
+}
+
+.surface {
+  display: grid;
+  gap: .95rem;
+  width: min(100%, 28rem);
+  margin-inline: auto;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: .7rem;
+  color: #162d3b;
+  font-size: 1.12rem;
+  font-weight: 750;
+}
+
+.mark {
+  display: grid;
+  place-items: center;
+  width: 2.15rem;
+  height: 2.15rem;
+  border-radius: .6rem;
+  background: #08675c;
+  color: #fff;
+}
+
+.card {
+  min-width: 0;
+  padding: clamp(1.2rem, 4vw, 1.85rem);
+  border: 1px solid #d8e3e2;
+  border-radius: .85rem;
+  background: #fff;
+  box-shadow: 0 12px 32px #173d3510;
+}
+
+.card h1 { color: #162d3b; font-size: 1.65rem; }
+
+.form { display: grid; gap: .4rem; margin-top: 1.2rem; }
+
+.form label { color: #243b46; font-weight: 600; }
+
+.form input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 2.75rem;
+  padding: .55rem .75rem;
+  border: 1px solid #afc4c4;
+  border-radius: .48rem;
+  background: #fff;
+  color: #162d3b;
+  font: inherit;
+}
+
+.form input + label { margin-top: .45rem; }
+.form input:focus-visible { outline: 2px solid #23887b; outline-offset: 1px; }
+.error { margin: .35rem 0 0; color: #a62e25; }
+
+.submit {
+  width: 100%;
+  min-height: 2.75rem;
+  margin-top: .65rem;
+  background: #08675c;
+  color: #fff;
+}
+
+.submit:hover:not(:disabled) { background: #07544b; }
+
+.health {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: .65rem 1rem;
+  min-width: 0;
+  padding: .75rem .9rem;
+  border: 1px solid #d8e3e2;
+  border-radius: .7rem;
+  background: #f9fcfb;
+}
+
+.healthText { flex: 1 1 12rem; min-width: 0; }
+.healthText p { display: flex; align-items: baseline; gap: .45rem; margin: 0; color: #243b46; font-size: .88rem; font-weight: 600; }
+.healthText code { display: block; margin: .15rem 0 0 .97rem; color: #526873; font-size: .77rem; overflow-wrap: anywhere; }
+.statusDot { align-self: start; flex: 0 0 .52rem; height: .52rem; margin-top: .39rem; border-radius: 50%; background: #647e80; }
+.statusDot[data-status='ready'] { background: #16816e; }
+.statusDot[data-status='offline'], .statusDot[data-status='unavailable'] { background: #b04a33; }
+.retry { flex: 0 0 auto; padding: .38rem .62rem; border: 1px solid #d8e3e2; background: #fff; color: #243b46; font-size: .86rem; }
+.retry:hover:not(:disabled) { background: #eaf4f2; }
+.connectionPanel > .health { margin-top: 1rem; }
