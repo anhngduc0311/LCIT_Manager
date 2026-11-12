@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Page, RecordItem, RequestApi, Role } from '../models/api';
+import { ApiFailure, Page, RecordItem, RequestApi, Role } from '../models/api';
 import { Kind } from '../models/catalog';
 import { errorText, useRemote } from './use-remote';
 
@@ -24,7 +24,11 @@ export function useCatalogList(api: RequestApi, kind: Kind) {
       const { total, pageSize } = data;
       setPage(Math.min(page, Math.max(1, Math.ceil((total - 1) / pageSize))));
       reload();
-    } catch (error) { setRemoveError(errorText(error)); }
+    } catch (error) {
+      setRemoveError(error instanceof ApiFailure && error.code === 'HTTP_404'
+        ? 'API đang chạy chưa hỗ trợ xóa tài khoản. Hãy cập nhật và khởi động lại API.'
+        : errorText(error));
+    }
     finally { setRemoving(false); }
   }
   return { setPage, listing, reload, create, saveItem, removeItem, removing, removeError };

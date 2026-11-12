@@ -78,12 +78,13 @@ function ResourceName({ api, kind, id, open, fallback }: { api: RequestApi; kind
 export function Catalog({ kind, api, role, actorId, open }: { kind: Kind; api: RequestApi; role: Role; actorId: string; open: (kind: Kind, id: string) => void }) {
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState('');
+  const [confirming, setConfirming] = useState('');
   const { setPage, listing, reload, create, saveItem, removeItem, removing, removeError } = useCatalogList(api, kind);
   const config = catalogs[kind];
   const manageAccounts = kind === 'users' && role === 'admin';
   return <section className="panel"><div className="section-title"><h1>{config.title}</h1><div className="actions">
-    {role === 'admin' && !creating && <button disabled={removing} onClick={() => { setEditing(''); setCreating(true); }}>Thêm mới</button>}
-    <button className="secondary" disabled={removing} onClick={() => { setEditing(''); reload(); }}>Tải lại</button>
+    {role === 'admin' && !creating && <button disabled={removing} onClick={() => { setConfirming(''); setEditing(''); setCreating(true); }}>Thêm mới</button>}
+    <button className="secondary" disabled={removing} onClick={() => { setConfirming(''); setEditing(''); reload(); }}>Tải lại</button>
   </div></div>
     {creating && <EditForm api={api} fields={config.fields} save={async (body) => {
       const item = await create(body); open(kind, item.id);
@@ -97,16 +98,25 @@ export function Catalog({ kind, api, role, actorId, open }: { kind: Kind; api: R
         <div className="actions"><span className="muted">{String(row.code ?? row.username ?? row.renewalDate ?? '')}</span>
           {manageAccounts && <>
             <button type="button" className="secondary" disabled={removing || creating || editing === row.id}
-              aria-label={`Sửa tài khoản ${row.username}`} onClick={() => setEditing(row.id)}>Sửa</button>
+              aria-label={`Sửa tài khoản ${row.username}`} onClick={() => { setConfirming(''); setEditing(row.id); }}>Sửa</button>
             {row.id !== actorId && <button type="button" className="secondary account-delete" disabled={removing || creating || Boolean(editing)}
-              aria-label={`Xóa tài khoản ${row.username}`} onClick={() => {
-                if (window.confirm(`Xóa tài khoản "${row.username}"? Tài khoản sẽ bị đăng xuất và mất quyền truy cập.`)) void removeItem(row);
-              }}>Xóa</button>}
+              aria-label={`Xóa tài khoản ${row.username}`} aria-expanded={confirming === row.id}
+              aria-controls={`confirm-delete-${row.id}`} onClick={() => setConfirming(confirming === row.id ? '' : row.id)}>Xóa</button>}
           </>}
         </div>
         {manageAccounts && editing === row.id && <EditForm key={row.version} api={api} fields={config.fields} item={row}
           cancel={() => setEditing('')} save={async (body) => { await saveItem(row, body); setEditing(''); }} />}
-      </li>)}</ul>}<Pager {...listing.data} change={(page) => { if (!removing) { setEditing(''); setPage(page); } }} /></>}
+        {manageAccounts && confirming === row.id && <div id={`confirm-delete-${row.id}`} className="editor" role="group" aria-label="Xác nhận xóa tài khoản">
+          <p>Xóa tài khoản <strong>{String(row.username)}</strong>? Tài khoản sẽ bị đăng xuất và mất quyền truy cập.</p>
+          <div className="actions">
+            <button type="button" className="secondary account-delete" disabled={removing} onClick={async () => {
+              await removeItem(row);
+              setConfirming('');
+            }}>{removing ? 'Đang xóa…' : 'Xác nhận xóa'}</button>
+            <button type="button" className="secondary" disabled={removing} onClick={() => setConfirming('')}>Hủy</button>
+          </div>
+        </div>}
+      </li>)}</ul>}<Pager {...listing.data} change={(page) => { if (!removing) { setConfirming(''); setEditing(''); setPage(page); } }} /></>}
   </section>;
 }
 
