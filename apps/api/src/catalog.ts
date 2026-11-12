@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, Get, HttpCode, Injectable, Param, Patch, Post, Put, Query, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { PoolClient } from 'pg';
-import { Actor, applicationScope, requireAdmin, serverScope, SessionGuard, SessionRequest } from './access';
+import { Actor, applicationDomainIds, applicationScope, requireAdmin, serverScope, SessionGuard, SessionRequest } from './access';
 import { ApiError, bodyOf, choice, invalid, missing, paged, PageRow, pageSchema, pagination, requestId, stale, text, uuid, version } from './api-contract';
 import { recordAudit } from './audit';
 import { Database } from './database';
@@ -124,12 +124,23 @@ export class CatalogService {
 
   async detail(kind: Kind, request: SessionRequest, rawId: string) {
     const id = uuid(rawId);
+    const owner = kind === 'applications' || kind === 'databases' ? `,
+      (SELECT u.display_name FROM lcit.users u WHERE u.id = item.owner_id) AS "ownerDisplayName"` : '';
     const databases = kind === 'applications' ? `, ARRAY(
       SELECT db.id FROM lcit.app_databases rel JOIN lcit.databases db ON db.id = rel.database_id
       WHERE rel.application_id = item.id AND db.archived_at IS NULL AND ${scope('databases', request.actor, 'db')}
-      ORDER BY db.id) AS "databaseIds"` : '';
+      ORDER BY db.id) AS "databaseIds",
+      ARRAY(SELECT s.id FROM lcit.app_servers rel JOIN lcit.servers s ON s.id = rel.server_id
+        WHERE rel.application_id = item.id AND s.archived_at IS NULL ORDER BY s.hostname, s.id) AS "serverIds",
+      ARRAY(SELECT d.id FROM (${applicationDomainIds('item')}) rel JOIN lcit.domains d ON d.id = rel.domain_id
+        WHERE d.archived_at IS NULL ORDER BY d.name, d.id) AS "domainIds",
+      ARRAY(SELECT d.id FROM lcit.app_domains rel JOIN lcit.domains d ON d.id = rel.domain_id
+        WHERE rel.application_id = item.id AND d.archived_at IS NULL ORDER BY d.name, d.id) AS "directDomainIds",
+      ARRAY(SELECT dns.id FROM lcit.app_dns_records rel JOIN lcit.dns_records dns ON dns.id = rel.dns_record_id
+        JOIN lcit.domains d ON d.id = dns.domain_id AND d.archived_at IS NULL
+        WHERE rel.application_id = item.id ORDER BY dns.host, dns.id) AS "dnsRecordIds"` : '';
     const { rows: [row] } = await this.db.query(`
-      SELECT ${projection(kind, 'item')}${databases} FROM lcit.${collections[kind].table} item
+      SELECT ${projection(kind, 'item')}${owner}${databases} FROM lcit.${collections[kind].table} item
       WHERE item.id = $2 AND item.archived_at IS NULL AND ${scope(kind, request.actor, 'item')}
     `, [request.actor.id, id]);
     if (!row) missing();
@@ -221,9 +232,13 @@ function catalogController(kind: Kind) {
     ...properties, id: { type: 'string', format: 'uuid' }, version: { type: 'integer' },
     archivedAt: { type: 'string', format: 'date-time', nullable: true },
   } };
-  const detail = kind === 'applications' ? { ...item, required: [...item.required, 'databaseIds'], properties: {
-    ...item.properties, databaseIds: { type: 'array', items: { type: 'string', format: 'uuid' } },
+  const relations = ['databaseIds', 'serverIds', 'domainIds', 'directDomainIds', 'dnsRecordIds'];
+  const withOwner = kind === 'applications' || kind === 'databases' ? { ...item, required: [...item.required, 'ownerDisplayName'], properties: {
+    ...item.properties, ownerDisplayName: { type: 'string', nullable: true },
   } } : item;
+  const detail = kind === 'applications' ? { ...withOwner, required: [...withOwner.required, ...relations], properties: {
+    ...withOwner.properties, ...Object.fromEntries(relations.map((key) => [key, { type: 'array', items: { type: 'string', format: 'uuid' } }])),
+  } } : withOwner;
   @ApiTags(kind)
   @ApiBearerAuth()
   @UseGuards(SessionGuard)

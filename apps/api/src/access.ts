@@ -80,12 +80,23 @@ export function serverScope(role: Role, alias: string, actorParam: string) {
 export function domainScope(role: Role, alias: string, actorParam: string) {
   if (role === 'admin') return `${actorParam}::uuid IS NOT NULL`;
   return `EXISTS (SELECT 1 FROM lcit.applications app
-    WHERE app.archived_at IS NULL AND ${applicationScope(role, 'app', actorParam)} AND (
-      EXISTS (SELECT 1 FROM lcit.app_domains rel WHERE rel.application_id = app.id AND rel.domain_id = ${alias}.id)
+    WHERE app.archived_at IS NULL AND ${applicationScope(role, 'app', actorParam)} AND ${domainLinkedToApplication(alias, 'app')})`;
+}
+
+export function domainLinkedToApplication(domain: string, app: string) {
+  return `(EXISTS (SELECT 1 FROM lcit.app_domains rel WHERE rel.application_id = ${app}.id AND rel.domain_id = ${domain}.id)
       OR EXISTS (SELECT 1 FROM lcit.app_dns_records rel JOIN lcit.dns_records dns ON dns.id = rel.dns_record_id
-        WHERE rel.application_id = app.id AND dns.domain_id = ${alias}.id)
+        WHERE rel.application_id = ${app}.id AND dns.domain_id = ${domain}.id)
       OR EXISTS (SELECT 1 FROM lcit.app_servers rel JOIN lcit.domain_servers ds ON ds.server_id = rel.server_id
         JOIN lcit.servers srv ON srv.id = ds.server_id AND srv.archived_at IS NULL
-        WHERE rel.application_id = app.id AND ds.domain_id = ${alias}.id)
-    ))`;
+        WHERE rel.application_id = ${app}.id AND ds.domain_id = ${domain}.id))`;
+}
+
+export function applicationDomainIds(app: string) {
+  return `SELECT rel.domain_id FROM lcit.app_domains rel WHERE rel.application_id = ${app}.id
+    UNION SELECT dns.domain_id FROM lcit.app_dns_records rel JOIN lcit.dns_records dns ON dns.id = rel.dns_record_id
+      WHERE rel.application_id = ${app}.id
+    UNION SELECT ds.domain_id FROM lcit.app_servers rel
+      JOIN lcit.servers srv ON srv.id = rel.server_id AND srv.archived_at IS NULL
+      JOIN lcit.domain_servers ds ON ds.server_id = srv.id WHERE rel.application_id = ${app}.id`;
 }

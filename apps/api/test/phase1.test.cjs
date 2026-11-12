@@ -8,6 +8,7 @@ const test = require('node:test');
 const { setTimeout: delay } = require('node:timers/promises');
 const { Pool } = require('pg');
 const { hashPassword, verifyPassword } = require('../dist/password');
+const { dateOnly, dnsOwner, domainName, host, port } = require('../dist/network-input');
 
 test('password hashes are salted and only verify the original password', async () => {
   const password = randomBytes(24).toString('hex');
@@ -16,6 +17,19 @@ test('password hashes are salted and only verify the original password', async (
   assert.equal(await verifyPassword(password, first), true);
   assert.equal(await verifyPassword('incorrect', first), false);
   assert.equal(await verifyPassword(password), false);
+});
+
+test('network fields normalize DNS and IPv6 and reject URLs, bad ports and impossible dates', () => {
+  assert.equal(domainName('BÜCHER.Example.'), 'xn--bcher-kva.example');
+  assert.equal(host('2001:0DB8:0:0:0:0:0:1'), '2001:db8::1');
+  assert.equal(dnsOwner('_sip._tcp', 'example.test'), '_sip._tcp.example.test');
+  assert.equal(dnsOwner('@', 'example.test'), 'example.test');
+  assert.equal(dateOnly('2028-02-29', 'renewalDate'), '2028-02-29');
+  assert.throws(() => dnsOwner('other.test.', 'example.test'));
+  assert.throws(() => host('https://host.example'));
+  assert.throws(() => host('host.example:443'));
+  assert.throws(() => port(65_536));
+  assert.throws(() => dateOnly('2026-02-29', 'renewalDate'));
 });
 
 const databaseUrl = process.env.LCIT_TEST_DATABASE_URL;
@@ -37,6 +51,8 @@ test('phase 1 migration, catalog permissions, sessions and audit', {
     return result.stdout;
   }
   assert.match(run('migrate'), /002_accounts_catalog\.sql/);
+  const migrations = await db.query('SELECT name FROM lcit.schema_migrations ORDER BY name');
+  assert(migrations.rows.some((row) => row.name === '003_catalog_search.sql'));
   assert.match(run('migrate'), /up to date/);
   run('seed');
   run('seed');
@@ -111,6 +127,45 @@ test('phase 1 migration, catalog permissions, sessions and audit', {
   }
   const application = await call('GET', `/applications/${appA.id}`, { token: specialistToken });
   assert.equal(application.databaseIds.length, 1);
+  const applicationB = await call('GET', `/applications/${appB.id}`, { token: admin });
+  const serverA = await call('GET', `/servers/${application.serverIds[0]}`, { token: admin });
+  await call('GET', `/servers/${applicationB.serverIds[0]}`, { token: specialistToken, status: 404 });
+  const ipSearch = await call('GET', '/search?q=10.42.0.15', { token: admin });
+  assert.equal(ipSearch.total, 2);
+  assert.deepEqual(new Set(ipSearch.items.flatMap((item) => item.servers.flatMap((server) => server.addresses.map((address) => address.networkScope)))), new Set(['LAN-A', 'LAN-B']));
+  for (const q of ['10.42.0.15', 'APP-A.EXAMPLE.TEST.', 'PORTAL-A.EXAMPLE.TEST.', 'Cổng Mẫu A', 'Đơn vị Mẫu A']) {
+    const found = await call('GET', `/search?q=${encodeURIComponent(q)}`, { token: specialistToken });
+    assert.deepEqual(found.items.map((item) => item.id), [appA.id]);
+  }
+  assert.equal((await call('GET', '/search?q=portal-b.example.test', { token: specialistToken })).total, 0);
+  assert.equal((await call('GET', '/search?q=10.42.0.15&page=3&pageSize=1', { token: admin })).total, 2);
+  const serverPath = `/servers/${serverA.id}`;
+  await call('POST', `${serverPath}/access-endpoints`, { token: admin, status: 400,
+    body: { version: serverA.version, protocol: 'ssh', host: 'https://host.example', port: 22 } });
+  await call('POST', `${serverPath}/access-endpoints`, { token: admin, status: 400,
+    body: { version: serverA.version, protocol: 'ssh', host: 'host.example', port: 65536 } });
+  await call('POST', `${serverPath}/addresses`, { token: admin, status: 409,
+    body: { version: serverA.version, address: '10.42.0.15', networkScope: 'LAN-A', kind: 'private' } });
+  const endpoint = await call('POST', `${serverPath}/access-endpoints`, { token: admin, status: 201,
+    body: { version: serverA.version, protocol: 'ssh', host: 'HOST.EXAMPLE.', port: 22 } });
+  assert.equal(endpoint.version, serverA.version + 1);
+  assert.equal((await call('GET', serverPath, { token: admin })).accessEndpoints[0].host, 'host.example');
+  assert.deepEqual((await call('GET', serverPath, { token: specialistToken })).accessEndpoints, []);
+  assert.deepEqual((await call('GET', '/search?q=10.42.0.15', { token: specialistToken })).items[0].servers[0].accessMethods, []);
+
+  const domainA = await call('GET', `/domains/${application.domainIds[0]}`, { token: admin });
+  const domainPath = `/domains/${domainA.id}`;
+  await call('PUT', `/applications/${appB.id}/domains/${domainA.id}`, { token: admin, body: { version: applicationB.version } });
+  const dns = await call('POST', `${domainPath}/dns-records`, { token: admin, status: 201,
+    body: { version: domainA.version, host: '@', type: 'A', target: '10.42.0.15' } });
+  const renamed = await call('PATCH', domainPath, { token: admin, body: { version: dns.version, name: 'PORTAL-SHARED.EXAMPLE.TEST.' } });
+  assert.equal(renamed.name, 'portal-shared.example.test');
+  assert.equal((await call('GET', domainPath, { token: admin })).dnsRecords[0].host, renamed.name);
+  const scopedDomain = await call('GET', domainPath, { token: specialistToken });
+  assert.deepEqual(scopedDomain.applicationIds, [appA.id]);
+  assert.deepEqual(scopedDomain.dnsRecords, []);
+  assert.equal((await call('GET', `/search?q=${renamed.name}`, { token: admin })).total, 2);
+
   await call('PATCH', `/applications/${appA.id}`, { token: specialistToken, status: 403, body: { version: appA.version, serviceType: 'ordered' } });
   const edited = await call('PATCH', `/applications/${appA.id}`, { token: specialistToken, body: { version: appA.version, description: 'Updated' } });
   await call('PATCH', `/applications/${appA.id}`, { token: admin, status: 409, body: { version: appA.version, description: 'Stale' } });
@@ -133,6 +188,7 @@ test('phase 1 migration, catalog permissions, sessions and audit', {
   const { items: events } = await call('GET', '/audit-events?pageSize=100', { token: admin });
   assert(events.some((event) => event.action === 'applications.assignment.revoke' && event.relatedId === appA.id));
   assert(events.some((event) => event.action === 'catalog.update' && event.actorId === specialist.id && event.targetId === appA.id));
+  assert(events.some((event) => event.action === 'catalog.access-endpoints.create' && event.targetId === endpoint.id && event.relatedId === serverA.id));
   assert(events.some((event) => event.action === 'auth.login' && event.outcome === 'failure'));
   assert(!JSON.stringify(events).includes(password));
 });

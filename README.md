@@ -49,11 +49,17 @@ Trong Swagger UI tại `http://127.0.0.1:4000/docs`, gọi `POST /api/v1/auth/lo
 | `/users/{id}/assignments` | Xem ID đơn vị và ứng dụng đã phân công. `PUT` hoặc `DELETE` trên `/{type}/{targetId}` cấp hoặc thu hồi, với `type` là `organizations` cho Lãnh đạo hoặc `applications` cho Chuyên viên. Đổi vai trò xóa phân công của vai trò trước. |
 | `/organizations`, `/data-centers`, `/applications`, `/databases` | Danh sách có `page` và `pageSize`. Chi tiết dùng `/{id}`. Quản trị tạo bằng `POST`, sửa bằng `PATCH /{id}` và lưu trữ bằng `POST /{id}/archive`. Sửa và lưu trữ gửi `version`. |
 | `/applications/{id}/databases/{databaseId}` | Quản trị dùng `PUT` hoặc `DELETE` để thêm hoặc bỏ liên kết. Gửi `version` hiện hành của ứng dụng. Chi tiết ứng dụng trả `databaseIds` đã lọc theo quyền. |
+| `/servers`, `/domains` | Danh sách và chi tiết theo phạm vi. Quản trị tạo bằng `POST`, sửa bằng `PATCH /{id}` và lưu trữ bằng `POST /{id}/archive`. Gửi `version` khi sửa hoặc lưu trữ. |
+| `/servers/{id}/addresses`, `/servers/{id}/access-endpoints`, `/domains/{id}/dns-records`, `/domains/{id}/tls-endpoints` | Danh sách mục con nằm trong chi tiết tài nguyên. Quản trị thêm bằng `POST`, sửa bằng `PATCH /{childId}` và xóa bằng `DELETE /{childId}`. Các lệnh ghi gửi `version` của máy chủ hoặc tên miền. |
+| `/applications/{id}/servers/{targetId}`, `/applications/{id}/domains/{targetId}`, `/applications/{id}/dns-records/{targetId}`, `/domains/{id}/servers/{targetId}` | Quản trị dùng `PUT` và `DELETE` để quản lý liên kết. Gửi `version` của ứng dụng hoặc tên miền. |
+| `/search?q=...` | Trả ứng dụng cùng đơn vị, người phụ trách, máy chủ, DC, địa chỉ và phạm vi mạng, tên miền đã lọc quyền. IP và hostname/tên miền đầy đủ khớp chính xác. Từ khóa văn bản có thể khớp một phần tên ứng dụng hoặc đơn vị. |
 | `/audit-events` | Quản trị xem nhật ký đăng nhập, thay đổi phân công, tài khoản và danh mục. |
 
 Lãnh đạo thấy danh mục theo đơn vị được cấp. Chuyên viên thấy ứng dụng được phân công và tài nguyên liên kết trong phạm vi. Chuyên viên có thể sửa `name`, `description` và `status` của ứng dụng được phân công. `serviceType` nhận `ordered`, `monitoring` hoặc `operations`. Guard phiên và các hàm lọc `applicationScope`, `serverScope`, `domainScope` nằm trong `apps/api/src/access.ts`. Các thao tác ghi của người B có thể gọi `recordAudit` trong cùng transaction.
 
 Chạy `npm.cmd test --workspace @lcit/api` để kiểm tra băm mật khẩu. Đặt `LCIT_TEST_DATABASE_URL` tới một PostgreSQL **dùng riêng cho kiểm thử, chưa có schema `lcit`** để chạy thêm ca tích hợp migration, seed, phiên, phân quyền và nhật ký. Bộ kiểm thử tạo schema và dữ liệu riêng trong DB đó.
+
+Giao diện Giai đoạn 1 dùng chung các màn hình cho trình duyệt và Tauri. Sau khi áp dụng migration `003_catalog_search.sql` và khởi động lại API, mở giao diện, đăng nhập, chọn **Tra cứu** và thử `10.42.0.15` với bộ dữ liệu mẫu. Quản trị có thể mở danh mục máy chủ, tên miền, tài khoản và phân công ngay trên giao diện. Lãnh đạo và Chuyên viên chỉ thấy bản ghi DNS được liên kết với ứng dụng họ có quyền xem. Các điểm TLS và cấu hình SSH/RDP dành cho Quản trị. Luồng cấp quyền mở kết nối và gọi trình khách Windows thuộc Giai đoạn 4.
 
 ## Build và chạy ứng dụng Windows
 
