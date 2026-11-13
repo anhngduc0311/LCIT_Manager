@@ -102,6 +102,20 @@ Quản trị bật từng đích bằng `PUT /api/v1/monitoring/targets/{type}/{
 
 T3.4 đã có `GET /api/v1/alerts`, `GET /api/v1/notifications`, chi tiết `/{id}` và `PATCH /api/v1/notifications/{id}` với body `{"read":true}` hoặc `{"read":false}`. Danh sách hỗ trợ phân trang, lọc và số chưa đọc. Mọi yêu cầu lọc lại theo quyền hiện tại; chỉ chủ hộp thông báo được đổi trạng thái đã đọc. Không có migration mới. Xem [hợp đồng API và bàn giao T3.5](docs/NOTIFICATIONS_API.md) cùng [fixture thông báo](fixtures/notifications.json). Màn hình và khay Windows thuộc T3.5 của người B.
 
+## Giai đoạn 2 và 3 (phần người B)
+
+| API dưới `/api/v1` | Hành vi |
+| --- | --- |
+| `GET /dashboard` | Tổng ứng dụng, máy chủ, tên miền; phân bố theo hình thức dịch vụ, đơn vị, DC; số hạn tên miền/SSL quá hạn, trong 30 ngày và 31–90 ngày (theo ngày Asia/Ho_Chi_Minh). Mỗi ứng dụng chỉ tính một lần tại một DC. |
+| `GET /reports/inventory` | Một dòng mỗi ứng dụng kèm đơn vị, người phụ trách, máy chủ (DC, IP) và tên miền, có phân trang. Trả thêm `canExport`. |
+| `GET /reports/inventory.xlsx` | Cùng truy vấn và bộ lọc với báo cáo màn hình, tối đa 10.000 ứng dụng. Quản trị luôn xuất được; Lãnh đạo và Chuyên viên cần quyền `reports.export`. Ghi nhật ký `report.export.inventory`, kể cả lần bị từ chối. Mọi giá trị là ô văn bản hoặc số, không bao giờ là công thức. |
+
+Cả ba nhận chung bộ lọc `organizationId`, `dataCenterId`, `serviceType`, `status` và áp dụng phạm vi của người xem trong `apps/api/src/models/reports.service.ts` (hàm `scopedSets`).
+
+Desktop có thêm các màn hình **Tổng quan**, **Cảnh báo**, **Báo cáo** (lọc và xuất Excel) và **Nhập Excel** (chỉ Quản trị), cùng chuông thông báo ở thanh trên. Thông báo được thăm dò mỗi 60 giây và hiện thành thông báo Windows qua `tauri-plugin-notification`, mỗi ID chỉ một lần. Quyền Tauri nằm ở `apps/desktop/src-tauri/capabilities/default.json`.
+
+Màn hình **Nhập Excel** dùng API T2.2–T2.4 theo [docs/IMPORT_API.md](docs/IMPORT_API.md); màn hình **Cảnh báo**, chuông và thông báo Windows dùng API T3.4 theo [docs/NOTIFICATIONS_API.md](docs/NOTIFICATIONS_API.md).
+
 ## Build và chạy ứng dụng Windows
 
 Để chạy bản Tauri, khởi động API như ở bước 3, sau đó chạy `npm.cmd run desktop:dev` trong cửa sổ PowerShell riêng.

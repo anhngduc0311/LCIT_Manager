@@ -36,6 +36,12 @@ const messages: Record<string, string> = {
   UPLOAD_INCOMPLETE: 'Tải lên bị gián đoạn. Hãy thử lại.',
   DOWNLOAD_NOT_PERMITTED: 'Bạn chưa được Quản trị cấp quyền tải tệp.',
   FILE_UNAVAILABLE: 'Tệp tạm thời không khả dụng. Hãy báo Quản trị.',
+  HTTP_404: 'API đang chạy chưa có chức năng này. Hãy cập nhật và khởi động lại API.',
+  IMPORT_CONFLICT: 'Danh mục đã thay đổi kể từ lúc xem trước. Hãy bấm “Xem trước lại”, kiểm tra rồi xác nhận lại.',
+  IMPORT_COMPLETED: 'Lô này đã hoàn tất, không thể xem trước lại. Hãy tải lô mới.',
+  IMPORT_TOO_LARGE: 'Tệp vượt quá 10 MiB cho mỗi lô nhập.',
+  EXPORT_NOT_PERMITTED: 'Bạn chưa được Quản trị cấp quyền xuất báo cáo.',
+  REPORT_TOO_LARGE: 'Báo cáo quá lớn (trên 10.000 ứng dụng). Hãy thu hẹp bộ lọc.',
 };
 
 /** Reads the UTF-8 name from `filename*` (RFC 6266), falling back to the ASCII `filename`. */
@@ -74,7 +80,10 @@ export async function requestApi<T>(path: string, { method = 'GET', body, signal
   if (!response.ok) {
     const code = payload?.code ?? '';
     const field = payload?.fields ? Object.keys(payload.fields)[0] : undefined;
-    throw new ApiFailure(response.status, code, messages[code] ?? (field ? `Giá trị không hợp lệ (${field}).` : `Yêu cầu không thành công (HTTP ${response.status}).`));
+    const fieldText = field === 'file'
+      ? 'Tệp Excel không đọc được hoặc vượt giới hạn (tối đa 20 sheet, 10.000 dòng, 64 cột, 4.000 ký tự mỗi ô; không nhận tệp mã hóa).'
+      : field ? `Giá trị không hợp lệ (${field}).` : `Yêu cầu không thành công (HTTP ${response.status}).`;
+    throw new ApiFailure(response.status, code, messages[code] ?? fieldText);
   }
   return payload as T;
 }
