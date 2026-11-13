@@ -1,10 +1,12 @@
-# Nền tảng giám sát — T3.1
+# Giám sát — T3.1–T3.2
 
-T3.1 bổ sung migration `006_monitoring.sql`, lịch chạy phía máy chủ, trạng thái lần chạy gần nhất và ràng buộc chống trùng. Tác vụ đối chiếu hạn thuộc T3.2; kiểm tra DNS/TLS thực tế thuộc T3.3; phân phối và API thông báo thuộc T3.4.
+T3.1 bổ sung migration `006_monitoring.sql`, lịch chạy phía máy chủ, trạng thái lần chạy gần nhất và ràng buộc chống trùng. T3.2 đã nối tác vụ đối chiếu hạn, tạo cảnh báo và thông báo theo phạm vi trong cùng lần ghi. Kiểm tra DNS/TLS thực tế thuộc T3.3; API cảnh báo/thông báo và trạng thái đã đọc thuộc T3.4.
 
 ## Áp dụng và cấu hình
 
 Chạy `npm.cmd run db:migrate` rồi khởi động lại API. Migration thêm bảng và chỉ mục, không xóa dữ liệu danh mục. Lệnh migrate áp dụng mỗi tệp một lần và bỏ qua khi chạy lại.
+
+T3.2 sử dụng các bảng của `006_monitoring.sql`, không có migration mới. Nếu đã áp dụng T3.1, chỉ cần build và khởi động lại API để nạp tác vụ đối chiếu hạn.
 
 API đọc cấu hình qua môi trường, với giá trị mẫu trong `apps/api/.env.example`:
 
@@ -15,9 +17,40 @@ API đọc cấu hình qua môi trường, với giá trị mẫu trong `apps/ap
 | `MONITORING_EXPIRY_CRON` | `0 0 2 * * *` | Đối chiếu hạn hằng ngày lúc 02:00 giờ Việt Nam |
 | `MONITORING_DNS_TLS_CRON` | `0 */30 * * * *` | Kiểm tra DNS/TLS tại phút 00 và 30 mỗi giờ |
 
-Biểu thức mẫu có sáu trường, bắt đầu bằng giây. Cron hoặc múi giờ không hợp lệ làm API từ chối khởi động. Thay đổi cấu hình cần khởi động lại. Lịch dùng NestJS Schedule, chạy khi API đang hoạt động; không khởi chạy một tác vụ ngay khi API bật lại và không tự phát lại mọi lượt đã bỏ lỡ. T3.2 cần xét hạn hiện tại và chọn mốc khẩn nhất đang áp dụng sau thời gian ngừng chạy.
+Biểu thức mẫu có sáu trường, bắt đầu bằng giây. Cron hoặc múi giờ không hợp lệ làm API từ chối khởi động. Thay đổi cấu hình cần khởi động lại. Lịch dùng NestJS Schedule, chạy khi API đang hoạt động; không khởi chạy một tác vụ ngay khi API bật lại và không tự phát lại mọi lượt đã bỏ lỡ. Tác vụ đối chiếu hạn xét hạn hiện tại và chọn mốc khẩn nhất đang áp dụng sau thời gian ngừng chạy.
 
-Ở T3.1 chưa có handler T3.2/T3.3: trạng thái là `waiting_handler`, không tạo cron timer, không phát sinh kết quả kiểm tra/cảnh báo và không ghi nhận thành công giả. Khi handler được đăng ký, lịch tương ứng mới bắt đầu hoạt động. Chỉ bật một tiến trình lịch trong pilot theo SPEC.
+Tác vụ `expiry` đã có handler và chuyển sang `scheduled` khi bật lịch. Tác vụ `dns_tls` vẫn ở `waiting_handler` cho tới T3.3, không tạo cron timer và không ghi nhận thành công giả. Khi tắt lịch, cả hai trả `disabled`. Chỉ bật một tiến trình lịch trong pilot theo SPEC.
+
+## Đối chiếu hạn — T3.2
+
+Mỗi lần chạy lấy dữ liệu hiện có trong PostgreSQL từ ba nguồn độc lập:
+
+| Nguồn | Trường dữ liệu |
+| --- | --- |
+| `manual_domain` | `domains.renewal_date` |
+| `manual_tls` | `tls_endpoints.manual_expiry_date` |
+| `observed_tls` | `tls_endpoints.observed_expiry_at` |
+
+Chỉ xét tên miền chưa lưu trữ và endpoint thuộc tên miền đó; bỏ qua hạn trống. Tác vụ không truy vấn RDAP, DNS hoặc kết nối TLS. Hạn quan sát được lấy từ lần quan sát đã lưu; T3.3 sẽ cập nhật nguồn này khi kiểm tra thực tế.
+
+Ngày hiện tại và ngày của thời điểm TLS được tính theo `MONITORING_TIME_ZONE`, mặc định giờ Việt Nam. Hạn nhập tay là ngày lịch. Quy tắc cảnh báo theo ngày áp dụng cho cả ba nguồn; việc chứng thư thực sự hết hạn trong ngày sẽ do trạng thái phép kiểm TLS ở T3.3 phản ánh.
+
+| Số ngày còn lại | Mốc tạo cảnh báo |
+| --- | --- |
+| Trên 90 | Không tạo |
+| 31–90 | 90 |
+| 15–30 | 30 |
+| 8–14 | 14 |
+| 0–7 | 7 |
+| Âm | 0 — quá hạn |
+
+Ví dụ lịch bị lỡ tới khi còn 13 ngày: chỉ tạo mốc 14, không phát lại mốc 90 và 30. Chạy lại cùng mốc, nguồn và kỳ hạn không tạo thêm cảnh báo hoặc gửi lại thông báo. Đổi ngày hạn sau gia hạn tạo kỳ mới, giữ nguyên lịch sử cũ. Hai nguồn SSL nhập tay và TLS quan sát được có thể cùng cảnh báo cho một endpoint vì chúng có nhãn nguồn riêng.
+
+Cảnh báo mới và thông báo cho người nhận được tạo bằng một câu lệnh PostgreSQL nguyên tử, cùng ảnh chụp dữ liệu/quyền. Nếu ghi thông báo lỗi, cả cảnh báo mới cũng hoàn tác và lần sau có thể thử lại. Khóa của runner ngăn hai lượt chạy cùng tác vụ; unique constraint tiếp tục chống trùng khi thử lại hoặc có truy vấn đồng thời.
+
+Chỉ thông báo cho tài khoản đang hoạt động, chưa xóa: Quản trị toàn hệ thống; Lãnh đạo có quyền xem đơn vị liên quan; Chuyên viên được phân công ứng dụng liên quan. Dùng cùng bộ lọc quyền tên miền của API, gồm liên kết trực tiếp, qua bản ghi DNS hoặc máy chủ dùng chung. Ứng dụng đã lưu trữ không cấp quyền xem. Mỗi người chỉ nhận một thông báo cho mỗi cảnh báo dù có nhiều đường liên kết. Tên miền chưa liên kết ứng dụng vẫn cảnh báo cho Quản trị.
+
+Người nhận được chốt tại thời điểm tạo cảnh báo mới. Chạy lại không bổ sung người nhận vào cảnh báo cũ; các mốc/kỳ mới dùng quyền tại lần tạo tương ứng. T3.4 vẫn phải lọc lại quyền hiện hành khi cung cấp API đọc, để thông báo cũ không lộ tài nguyên sau khi thu hồi phân công. Chưa có màn hình hoặc thông báo khay ở bước này.
 
 ## Đọc trạng thái
 
@@ -54,7 +87,7 @@ Các thời điểm lưu `timestamptz`; ngày hạn nghiệp vụ lưu `date`. C
 
 ## Nối tác vụ T3.2–T3.3
 
-Provider nghiệp vụ gọi `MonitoringService.register(key, handler)` trong `onModuleInit`; mỗi key chỉ nhận một handler. Handler nhận `{ runId, client }`, trong đó `client` là kết nối PostgreSQL riêng đang giữ advisory lock của tác vụ.
+Provider nghiệp vụ gọi `MonitoringService.register(key, handler)` trong `onModuleInit`; mỗi key chỉ nhận một handler. `ExpiryMonitorService` đã đăng ký key `expiry`. T3.3 nối key `dns_tls`. Handler nhận `{ runId, client }`, trong đó `client` là kết nối PostgreSQL riêng đang giữ advisory lock của tác vụ.
 
 Runner ghi nhận bắt đầu trước khi gọi handler, rồi lưu thành công/thất bại khi kết thúc. Dùng kết nối `client` được cấp cho truy vấn của handler. Nếu cần nhiều thay đổi nguyên tử, mở transaction ngắn và luôn `COMMIT`/`ROLLBACK` trước khi trả về. Không giữ transaction trong lúc chờ DNS/TLS. Khi ghi cảnh báo và danh sách người nhận ở T3.2–T3.4, chúng phải ở cùng transaction và dùng `ON CONFLICT` phù hợp với các unique index. Người nhận và dữ liệu trả về vẫn phải lọc theo quyền hiện hành.
 
@@ -65,3 +98,5 @@ Khi tắt API bình thường, runner ngừng lịch và chờ tác vụ đang c
 ## Kiểm thử
 
 `npm.cmd test --workspace @lcit/api` kiểm tra cấu hình lịch và múi giờ. Đặt `LCIT_TEST_DATABASE_URL` tới PostgreSQL dùng riêng, **chưa có schema `lcit`**, để chạy thêm migration hai lần, FK/check constraint, chống trùng cảnh báo/thông báo/kết quả kiểm tra, quyền API trạng thái, khóa giữa hai runner, lưu lỗi và phục hồi sau khởi động lại. Kiểm thử dùng handler giả, không gửi yêu cầu DNS/TLS ra mạng.
+
+Bộ kiểm thử T3.2 chạy tác vụ thật trên dữ liệu tổng hợp với thời điểm cố định: đủ mốc và ranh giới 90/30/14/7, ngày 0, quá hạn, lỡ lịch, gia hạn, hai nguồn TLS, UTC qua ngày tại Việt Nam, phạm vi hai đơn vị và máy chủ dùng chung, tài khoản khóa/xóa, hoàn tác khi thông báo lỗi và chạy đồng thời. Có ca gọi qua runner thực để xác nhận việc nối tác vụ và lưu trạng thái.

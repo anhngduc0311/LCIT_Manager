@@ -31,11 +31,12 @@ test('T3.1: migration integrity, duplicate protection, persistent job status, lo
 }, async (context) => {
   const root = path.resolve(__dirname, '..');
   const db = new Pool({ connectionString: databaseUrl });
-  let app, ownsSchema = false, secondService;
+  let app, ownsSchema = false, secondService, isolatedMonitoring;
   const envKeys = ['DATABASE_URL', 'MONITORING_ENABLED', 'MONITORING_TIME_ZONE', 'MONITORING_EXPIRY_CRON', 'MONITORING_DNS_TLS_CRON'];
   const oldEnv = Object.fromEntries(envKeys.map((key) => [key, process.env[key]]));
   context.after(async () => {
     await secondService?.onModuleDestroy();
+    await isolatedMonitoring?.onModuleDestroy();
     await app?.close();
     if (ownsSchema) await db.query('DROP SCHEMA IF EXISTS lcit CASCADE');
     await db.end();
@@ -89,8 +90,11 @@ test('T3.1: migration integrity, duplicate protection, persistent job status, lo
   await getJobs('specialist', 403);
   let jobs = await getJobs();
   assert.equal(jobs.items.length, 2);
-  assert.ok(jobs.items.every((j) => j.state === 'waiting_handler' && j.lastRun === null && j.nextRunAt === null));
-  const monitoring = app.get(MonitoringService);
+  assert.ok(jobs.items.every((j) => j.lastRun === null));
+  assert.equal(jobs.items.find((j) => j.key === 'expiry').state, 'scheduled');
+  assert.equal(jobs.items.find((j) => j.key === 'dns_tls').state, 'waiting_handler');
+  const registry = new SchedulerRegistry();
+  const monitoring = isolatedMonitoring = new MonitoringService(app.get(Database), registry);
   assert.deepEqual(await monitoring.run('dns_tls'), { status: 'skipped_unregistered' });
   assert.equal((await db.query('SELECT count(*) FROM lcit.monitoring_job_runs')).rows[0].count, '0');
 
@@ -99,6 +103,7 @@ test('T3.1: migration integrity, duplicate protection, persistent job status, lo
   const gate = new Promise((resolve) => { release = resolve; });
   let behavior = async () => { entered(); await gate; };
   monitoring.register('expiry', (ctx) => behavior(ctx));
+  await monitoring.onApplicationBootstrap();
   assert.throws(() => monitoring.register('expiry', async () => {}), /duplicate/);
   secondService = new MonitoringService(app.get(Database), new SchedulerRegistry());
   secondService.register('expiry', async () => { assert.fail('Must not run while another process holds the job lock.'); });
@@ -133,7 +138,7 @@ test('T3.1: migration integrity, duplicate protection, persistent job status, lo
 
   monitoring.register('dns_tls', async () => {});
   // Exercise the actual registered cron callback without waiting for wall-clock time.
-  await app.get(SchedulerRegistry).getCronJob('monitoring:dns_tls').fireOnTick();
+  await registry.getCronJob('monitoring:dns_tls').fireOnTick();
   const checkJob = (await getJobs()).items.find((j) => j.key === 'dns_tls');
   assert.equal(checkJob.lastRun.status, 'succeeded');
 
@@ -183,6 +188,7 @@ test('T3.1: migration integrity, duplicate protection, persistent job status, lo
   delete process.env.MONITORING_ENABLED;
   await secondService.onModuleDestroy();
   secondService = undefined;
+  await monitoring.onModuleDestroy();
   await app.close();
   app = undefined;
   assert.deepEqual(await monitoring.run('expiry'), { status: 'skipped_stopping' });
@@ -195,6 +201,6 @@ test('T3.1: migration integrity, duplicate protection, persistent job status, lo
   assert.equal(recovered.lastRun.id, interrupted.id);
   assert.equal(recovered.lastRun.status, 'interrupted');
   assert.equal(recovered.lastRun.errorCode, 'PROCESS_INTERRUPTED');
-  assert.equal(recovered.state, 'waiting_handler');
+  assert.equal(recovered.state, 'scheduled');
   assert.ok(recovered.lastSuccessAt);
 });
