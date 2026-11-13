@@ -1,6 +1,6 @@
-# Giám sát — T3.1–T3.3
+# Giám sát — T3.1–T3.4
 
-T3.1 bổ sung migration `006_monitoring.sql`, lịch chạy phía máy chủ, trạng thái lần chạy gần nhất và ràng buộc chống trùng. T3.2 đã nối tác vụ đối chiếu hạn. T3.3 bổ sung `007_network_monitoring.sql`, duyệt đích DNS/TLS, kiểm tra mạng và trạng thái gián đoạn/phục hồi. API cảnh báo/thông báo và trạng thái đã đọc thuộc T3.4.
+T3.1 bổ sung migration `006_monitoring.sql`, lịch chạy phía máy chủ, trạng thái lần chạy gần nhất và ràng buộc chống trùng. T3.2 đã nối tác vụ đối chiếu hạn. T3.3 bổ sung `007_network_monitoring.sql`, duyệt đích DNS/TLS, kiểm tra mạng và trạng thái gián đoạn/phục hồi. T3.4 đã có API cảnh báo/thông báo, trạng thái đã đọc và lọc quyền tại lúc đọc; xem [hợp đồng và fixture bàn giao](NOTIFICATIONS_API.md). Không có migration mới ở T3.4.
 
 ## Áp dụng và cấu hình
 
@@ -69,7 +69,7 @@ Mỗi đích có trạng thái `unknown`, `up`, `down` và bộ đếm lỗi ri�
 
 Kết quả kiểm tra, cập nhật trạng thái, hạn TLS quan sát, sự kiện và thông báo được ghi trong một transaction ngắn cho từng đích; không giữ transaction khi gọi mạng. Khóa duy nhất theo lượt chạy và endpoint ngăn một kết quả gửi lại làm tăng bộ đếm hai lần. Trạng thái được lưu trong PostgreSQL nên không mất khi khởi động lại. Một lượt có lỗi lưu dữ liệu nhận trạng thái tác vụ `failed`; các đích đã commit trước đó vẫn giữ kết quả và được kiểm tra ở lượt tiếp theo.
 
-Thông báo sự kiện TLS dùng phạm vi tên miền. Sự kiện DNS dùng **liên kết đúng bản ghi DNS** với ứng dụng mà người nhận được phép xem; quyền xem tên miền cha không tự cấp quyền nhận chi tiết DNS khác. Chỉ tài khoản hoạt động, chưa xóa được nhận; các đường liên kết trùng không tạo nhiều thông báo. T3.4 phải kiểm tra lại quyền hiện hành khi cung cấp dữ liệu đọc.
+Thông báo sự kiện TLS dùng phạm vi tên miền. Sự kiện DNS dùng **liên kết đúng bản ghi DNS** với ứng dụng mà người nhận được phép xem; quyền xem tên miền cha không tự cấp quyền nhận chi tiết DNS khác. Chỉ tài khoản hoạt động, chưa xóa được nhận; các đường liên kết trùng không tạo nhiều thông báo. API T3.4 kiểm tra lại quyền hiện hành khi cung cấp dữ liệu đọc.
 
 ## Đối chiếu hạn — T3.2
 
@@ -100,7 +100,7 @@ Cảnh báo mới và thông báo cho người nhận được tạo bằng mộ
 
 Chỉ thông báo cho tài khoản đang hoạt động, chưa xóa: Quản trị toàn hệ thống; Lãnh đạo có quyền xem đơn vị liên quan; Chuyên viên được phân công ứng dụng liên quan. Dùng cùng bộ lọc quyền tên miền của API, gồm liên kết trực tiếp, qua bản ghi DNS hoặc máy chủ dùng chung. Ứng dụng đã lưu trữ không cấp quyền xem. Mỗi người chỉ nhận một thông báo cho mỗi cảnh báo dù có nhiều đường liên kết. Tên miền chưa liên kết ứng dụng vẫn cảnh báo cho Quản trị.
 
-Người nhận được chốt tại thời điểm tạo cảnh báo mới. Chạy lại không bổ sung người nhận vào cảnh báo cũ; các mốc/kỳ mới dùng quyền tại lần tạo tương ứng. T3.4 vẫn phải lọc lại quyền hiện hành khi cung cấp API đọc, để thông báo cũ không lộ tài nguyên sau khi thu hồi phân công. Chưa có màn hình hoặc thông báo khay ở bước này.
+Người nhận được chốt tại thời điểm tạo cảnh báo mới. Chạy lại không bổ sung người nhận vào cảnh báo cũ; các mốc/kỳ mới dùng quyền tại lần tạo tương ứng. API T3.4 lọc lại quyền hiện hành khi đọc, để thông báo cũ không lộ tài nguyên sau khi thu hồi phân công. Chưa có màn hình hoặc thông báo khay ở bước này.
 
 ## Đọc trạng thái
 

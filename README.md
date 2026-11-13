@@ -86,7 +86,7 @@ Giao diện Giai đoạn 1 dùng chung các màn hình cho trình duyệt và Ta
 
 Xem [hợp đồng API và quy tắc gộp](docs/IMPORT_API.md) để tích hợp trình hướng dẫn T2.5 của người B. Việc đối chiếu tệp thực và chốt D-02 thuộc T2.6.
 
-## Giám sát — T3.1–T3.3
+## Giám sát — T3.1–T3.4
 
 Đã có migration `006_monitoring.sql` cho kết quả kiểm tra, cảnh báo, thông báo và lịch sử tác vụ; cấu hình lịch theo giờ Việt Nam cùng khóa chống chạy đồng thời. Quản trị đọc trạng thái lần chạy gần nhất tại `GET /api/v1/monitoring/jobs`. Chạy `npm.cmd run db:migrate` rồi khởi động lại API để áp dụng.
 
@@ -94,7 +94,9 @@ T3.2 đã nối tác vụ đối chiếu hạn lúc 02:00 hằng ngày: kiểm t
 
 T3.3 đã nối kiểm tra DNS/TLS mỗi 30 phút: timeout, giới hạn song song, kiểm tra vùng IP/cổng/hostname, phân biệt lỗi và chứng thư hết hạn, ghi nhận gián đoạn sau hai lỗi liên tiếp và phục hồi sau một lần thành công. Chạy `npm.cmd run db:migrate` để áp dụng `007_network_monitoring.sql`, cấu hình `MONITORING_ALLOWED_HOSTS`, `MONITORING_ALLOWED_CIDRS`, cổng TLS và khởi động lại API. Mặc định danh sách cho phép rỗng, chưa có đích tự động được bật.
 
-Quản trị bật từng đích bằng `PUT /api/v1/monitoring/targets/{type}/{id}` với `type` là `dns` hoặc `tls`, body `{"version":0,"enabled":true}` cho lần đầu; các lần sau gửi phiên bản hiện hành. Xem cấu hình/kết quả gần nhất tại `GET /api/v1/monitoring/targets`, lịch sử tại `GET /api/v1/monitoring/targets/{type}/{id}/checks`. Cả hai tác vụ trả `scheduled` khi bật lịch; API thông báo và màn hình cảnh báo thuộc các task tiếp theo. Xem [cấu hình và tài liệu bàn giao giám sát](docs/MONITORING.md).
+Quản trị bật từng đích bằng `PUT /api/v1/monitoring/targets/{type}/{id}` với `type` là `dns` hoặc `tls`, body `{"version":0,"enabled":true}` cho lần đầu; các lần sau gửi phiên bản hiện hành. Xem cấu hình/kết quả gần nhất tại `GET /api/v1/monitoring/targets`, lịch sử tại `GET /api/v1/monitoring/targets/{type}/{id}/checks`. Cả hai tác vụ trả `scheduled` khi bật lịch. Xem [cấu hình và tài liệu bàn giao giám sát](docs/MONITORING.md).
+
+T3.4 đã có `GET /api/v1/alerts`, `GET /api/v1/notifications`, chi tiết `/{id}` và `PATCH /api/v1/notifications/{id}` với body `{"read":true}` hoặc `{"read":false}`. Danh sách hỗ trợ phân trang, lọc và số chưa đọc. Mọi yêu cầu lọc lại theo quyền hiện tại; chỉ chủ hộp thông báo được đổi trạng thái đã đọc. Không có migration mới. Xem [hợp đồng API và bàn giao T3.5](docs/NOTIFICATIONS_API.md) cùng [fixture thông báo](fixtures/notifications.json). Màn hình và khay Windows thuộc T3.5 của người B.
 
 ## Build và chạy ứng dụng Windows
 
