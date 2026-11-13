@@ -1,5 +1,5 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
-import { domainNotificationScope } from './access';
+import { dnsNotificationScope, domainNotificationScope } from './access';
 import { MonitoringRunContext, MonitoringService } from './monitoring.service';
 import { liveTargetsSql, MonitoringTarget, readLiveTarget, sameConfig } from './monitoring-targets.service';
 import { NetworkProbe, ProbeResult, probeFailure } from './network-probe';
@@ -54,7 +54,7 @@ export class NetworkMonitorService implements OnModuleInit {
         VALUES($1,$2,$3,$4,$5,$5) ON CONFLICT DO NOTHING RETURNING id
       ) INSERT INTO lcit.notifications(alert_id,recipient_id)
         SELECT event.id,u.id FROM event JOIN lcit.domains d ON d.id=$6
-        JOIN lcit.users u ON ${domainNotificationScope('d', 'u')}
+        JOIN lcit.users u ON ${target.check_type === 'dns' ? dnsNotificationScope('$3', 'u') : domainNotificationScope('d', 'u')}
         ON CONFLICT (alert_id,recipient_id) DO NOTHING`,
       [kind, target.check_type, target.dns_record_id, target.tls_endpoint_id, check.id, live.domain_id]);
       await client.query('COMMIT');

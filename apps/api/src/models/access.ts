@@ -65,6 +65,14 @@ export function domainNotificationScope(domain: string, user: string) {
     OR (${user}.role='specialist' AND ${domainScope('specialist', domain, `${user}.id`)}))`;
 }
 
+export function dnsNotificationScope(recordId: string, user: string) {
+  return `${user}.status='active' AND ${user}.deleted_at IS NULL AND (${user}.role='admin' OR EXISTS (
+    SELECT 1 FROM lcit.app_dns_records rel JOIN lcit.applications app ON app.id=rel.application_id
+    WHERE rel.dns_record_id=${recordId} AND app.archived_at IS NULL AND (
+      (${user}.role='leader' AND ${applicationScope('leader', 'app', `${user}.id`)})
+      OR (${user}.role='specialist' AND ${applicationScope('specialist', 'app', `${user}.id`)}))))`;
+}
+
 export function domainLinkedToApplication(domain: string, app: string) {
   return `(EXISTS (SELECT 1 FROM lcit.app_domains rel WHERE rel.application_id = ${app}.id AND rel.domain_id = ${domain}.id)
       OR EXISTS (SELECT 1 FROM lcit.app_dns_records rel JOIN lcit.dns_records dns ON dns.id = rel.dns_record_id
