@@ -1,4 +1,7 @@
 import { Module } from '@nestjs/common';
+import { ScheduleModule } from '@nestjs/schedule';
+import { MonitoringController } from './controllers/monitoring.controller';
+import { MonitoringService } from './models/monitoring.service';
 import { AttachmentsController, PermissionsController } from './controllers/attachments.controller';
 import { AuditController } from './controllers/audit.controller';
 import { AuthController } from './controllers/auth.controller';
@@ -22,9 +25,10 @@ import { ImportsController } from './controllers/imports.controller';
 import { ImportsService } from './models/imports.service';
 
 @Module({
+  imports: [ScheduleModule.forRoot()],
   controllers: [HealthController, AuthController, UsersController, AuditController, ...catalogControllers, ApplicationDatabasesController,
-    ...infrastructureControllers, SearchController, AttachmentsController, PermissionsController, ImportsController],
+    ...infrastructureControllers, SearchController, AttachmentsController, PermissionsController, ImportsController, MonitoringController],
   providers: [Database, AuditService, AuthService, UsersService, CatalogService, SessionGuard, InfrastructureService, SearchService,
-    FileStore, PermissionsService, AttachmentsService, ImportsService],
+    FileStore, PermissionsService, AttachmentsService, ImportsService, MonitoringService],
 })
 export class AppModule {}

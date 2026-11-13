@@ -86,6 +86,12 @@ Giao diện Giai đoạn 1 dùng chung các màn hình cho trình duyệt và Ta
 
 Xem [hợp đồng API và quy tắc gộp](docs/IMPORT_API.md) để tích hợp trình hướng dẫn T2.5 của người B. Việc đối chiếu tệp thực và chốt D-02 thuộc T2.6.
 
+## Giám sát — T3.1
+
+Đã có migration `006_monitoring.sql` cho kết quả kiểm tra, cảnh báo, thông báo và lịch sử tác vụ; cấu hình lịch theo giờ Việt Nam cùng khóa chống chạy đồng thời. Quản trị đọc trạng thái lần chạy gần nhất tại `GET /api/v1/monitoring/jobs`. Chạy `npm.cmd run db:migrate` rồi khởi động lại API để áp dụng.
+
+Mặc định đối chiếu hạn lúc 02:00 hằng ngày và kiểm tra DNS/TLS mỗi 30 phút. Trước khi nối tác vụ T3.2/T3.3, API trả `waiting_handler` và chưa thực hiện kiểm tra mạng hoặc sinh cảnh báo. Xem [cấu hình và tài liệu bàn giao giám sát](docs/MONITORING.md).
+
 ## Build và chạy ứng dụng Windows
 
 Để chạy bản Tauri, khởi động API như ở bước 3, sau đó chạy `npm.cmd run desktop:dev` trong cửa sổ PowerShell riêng.
