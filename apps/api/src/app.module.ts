@@ -18,11 +18,13 @@ import { Database } from './models/database';
 import { InfrastructureService } from './models/infrastructure.service';
 import { SearchService } from './models/search.service';
 import { UsersService } from './models/users.service';
+import { ImportsController } from './controllers/imports.controller';
+import { ImportsService } from './models/imports.service';
 
 @Module({
   controllers: [HealthController, AuthController, UsersController, AuditController, ...catalogControllers, ApplicationDatabasesController,
-    ...infrastructureControllers, SearchController, AttachmentsController, PermissionsController],
+    ...infrastructureControllers, SearchController, AttachmentsController, PermissionsController, ImportsController],
   providers: [Database, AuditService, AuthService, UsersService, CatalogService, SessionGuard, InfrastructureService, SearchService,
-    FileStore, PermissionsService, AttachmentsService],
+    FileStore, PermissionsService, AttachmentsService, ImportsService],
 })
 export class AppModule {}

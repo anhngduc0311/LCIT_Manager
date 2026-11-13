@@ -80,6 +80,12 @@ Chạy `npm.cmd test --workspace @lcit/api` để kiểm tra băm mật khẩu. 
 
 Giao diện Giai đoạn 1 dùng chung các màn hình cho trình duyệt và Tauri. Sau khi áp dụng migration `003_catalog_search.sql` và khởi động lại API, mở giao diện, đăng nhập, chọn **Tra cứu** và thử `10.42.0.15` với bộ dữ liệu mẫu. Quản trị có thể mở danh mục máy chủ, tên miền, tài khoản và phân công ngay trên giao diện. Lãnh đạo và Chuyên viên chỉ thấy bản ghi DNS được liên kết với ứng dụng họ có quyền xem. Các điểm TLS và cấu hình SSH/RDP dành cho Quản trị. Luồng cấp quyền mở kết nối và gọi trình khách Windows thuộc Giai đoạn 4.
 
+## Nhập Excel — Giai đoạn 2, người A
+
+Đã triển khai T2.2–T2.4: đọc `.xlsx`, chọn sheet/ánh xạ cột, xem trước và lưu quyết định từng dòng, xác nhận theo transaction, chống nhập lặp và phát hiện thay đổi sau xem trước. Chạy `npm.cmd run db:migrate` để áp dụng `005_imports.sql`, rồi khởi động lại API. Các điểm truy cập `/api/v1/imports` có trong Swagger và chỉ dành cho Quản trị.
+
+Xem [hợp đồng API và quy tắc gộp](docs/IMPORT_API.md) để tích hợp trình hướng dẫn T2.5 của người B. Việc đối chiếu tệp thực và chốt D-02 thuộc T2.6.
+
 ## Build và chạy ứng dụng Windows
 
 Để chạy bản Tauri, khởi động API như ở bước 3, sau đó chạy `npm.cmd run desktop:dev` trong cửa sổ PowerShell riêng.
