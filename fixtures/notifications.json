@@ -1,0 +1,50 @@
+{
+  "items": [
+    {
+      "id": "43000000-0000-4000-8000-000000000002",
+      "createdAt": "2026-11-13T03:30:00.000Z",
+      "readAt": null,
+      "alert": {
+        "id": "42000000-0000-4000-8000-000000000002",
+        "createdAt": "2026-11-13T03:30:00.000Z",
+        "kind": "outage",
+        "source": "dns",
+        "resourceType": "dns_record",
+        "resourceId": "41000000-0000-4000-8000-000000000003",
+        "domainId": "41000000-0000-4000-8000-000000000001",
+        "domainName": "portal-a.example.test",
+        "resourceLabel": "app.portal-a.example.test",
+        "expiryDate": null,
+        "thresholdDays": null,
+        "check": {
+          "status": "dns_error",
+          "errorCode": "DNS_LOOKUP_FAILED",
+          "finishedAt": "2026-11-13T03:30:00.000Z"
+        }
+      }
+    },
+    {
+      "id": "43000000-0000-4000-8000-000000000001",
+      "createdAt": "2026-11-12T19:00:00.000Z",
+      "readAt": null,
+      "alert": {
+        "id": "42000000-0000-4000-8000-000000000001",
+        "createdAt": "2026-11-12T19:00:00.000Z",
+        "kind": "expiry",
+        "source": "manual_tls",
+        "resourceType": "tls_endpoint",
+        "resourceId": "41000000-0000-4000-8000-000000000002",
+        "domainId": "41000000-0000-4000-8000-000000000001",
+        "domainName": "portal-a.example.test",
+        "resourceLabel": "portal-a.example.test",
+        "expiryDate": "2026-11-20",
+        "thresholdDays": 7,
+        "check": null
+      }
+    }
+  ],
+  "total": 2,
+  "unreadCount": 2,
+  "page": 1,
+  "pageSize": 25
+}
