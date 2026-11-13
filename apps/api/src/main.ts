@@ -3,8 +3,10 @@ import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ApiExceptionFilter } from './shared/api-contract';
 import { AppModule } from './app.module';
+import { DirectDatabaseConnectionRequired, requireDirectDatabaseUrl } from './models/database-config';
 
 async function bootstrap() {
+  if (process.env.DATABASE_URL) requireDirectDatabaseUrl(process.env.DATABASE_URL);
   const host = process.env.API_HOST ?? '127.0.0.1';
   const port = Number(process.env.API_PORT ?? '4000');
   const origins = (
@@ -25,7 +27,7 @@ async function bootstrap() {
   await app.listen(port, host);
 }
 
-void bootstrap().catch(() => {
-  console.error('API startup failed. Check API_HOST, API_PORT and local configuration.');
+void bootstrap().catch((error: unknown) => {
+  console.error(error instanceof DirectDatabaseConnectionRequired ? error.message : 'API startup failed. Check API_HOST, API_PORT and local configuration.');
   process.exitCode = 1;
 });

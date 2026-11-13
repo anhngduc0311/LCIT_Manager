@@ -6,6 +6,36 @@ const { randomUUID, randomBytes } = require('node:crypto');
 const { Pool } = require('pg');
 const { CronTime } = require('cron');
 const { monitoringConfig } = require('../dist/models/monitoring-config');
+const { requireDirectDatabaseUrl, DirectDatabaseConnectionRequired } = require('../dist/models/database-config');
+
+test('database configuration rejects Neon transaction poolers before connecting without exposing credentials', async () => {
+  for (const suffix of ['.c-2.ap-southeast-1.aws.neon.tech', '.eu-central-1.aws.neon.tech']) {
+    const direct = `postgresql://test-user:test-secret@ep-test${suffix}/test?sslmode=require&channel_binding=require`;
+    assert.equal(requireDirectDatabaseUrl(direct), direct);
+    const pooled = direct.replace('ep-test.', 'ep-test-pooler.');
+    assert.throws(() => requireDirectDatabaseUrl(pooled), (error) => {
+      assert.ok(error instanceof DirectDatabaseConnectionRequired);
+      assert.equal(error.code, 'DATABASE_DIRECT_CONNECTION_REQUIRED');
+      assert.doesNotMatch(error.message, /test-user|test-secret|ep-test/);
+      return true;
+    });
+  }
+  assert.equal(requireDirectDatabaseUrl('postgres://localhost:5432/test'), 'postgres://localhost:5432/test');
+  assert.throws(() => requireDirectDatabaseUrl('not-a-url-with-test-secret'), (error) => !error.message.includes('test-secret'));
+  const previousUrl = process.env.DATABASE_URL;
+  process.env.DATABASE_URL = 'postgresql://test-user:test-secret@ep-test-pooler.eu-central-1.aws.neon.tech/test';
+  try {
+    const { createPool } = require('../dist/models/database');
+    assert.throws(() => createPool(), DirectDatabaseConnectionRequired);
+    const startup = spawnSync(process.execPath, ['dist/main.js'], { cwd: path.resolve(__dirname, '..'),
+      env: { ...process.env }, encoding: 'utf8', timeout: 5000 });
+    assert.equal(startup.status, 1, startup.stderr);
+    assert.match(startup.stderr, /direct PostgreSQL endpoint/);
+    assert.doesNotMatch(startup.stderr + startup.stdout, /test-secret|test-user/);
+  } finally {
+    if (previousUrl === undefined) delete process.env.DATABASE_URL; else process.env.DATABASE_URL = previousUrl;
+  }
+});
 
 test('monitoring schedules use Vietnam time and reject invalid configuration', () => {
   const config = monitoringConfig({});
@@ -101,7 +131,18 @@ test('T3.1: migration integrity, duplicate protection, persistent job status, lo
   let entered, release;
   const started = new Promise((resolve) => { entered = resolve; });
   const gate = new Promise((resolve) => { release = resolve; });
-  let behavior = async () => { entered(); await gate; };
+  let behavior = async ({ client }) => {
+    const backend = (await client.query('SELECT pg_backend_pid() AS id')).rows[0].id;
+    await client.query('BEGIN');
+    await client.query('SELECT 1');
+    await client.query('COMMIT');
+    assert.equal((await client.query('SELECT pg_backend_pid() AS id')).rows[0].id, backend);
+    await client.query('BEGIN');
+    await client.query('SELECT 1');
+    await client.query('ROLLBACK');
+    assert.equal((await client.query('SELECT pg_backend_pid() AS id')).rows[0].id, backend);
+    entered(); await gate;
+  };
   monitoring.register('expiry', (ctx) => behavior(ctx));
   await monitoring.onApplicationBootstrap();
   assert.throws(() => monitoring.register('expiry', async () => {}), /duplicate/);

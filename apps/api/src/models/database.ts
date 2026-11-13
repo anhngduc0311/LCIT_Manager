@@ -1,5 +1,6 @@
 import { Injectable, Logger, OnModuleDestroy, ServiceUnavailableException } from '@nestjs/common';
 import { Pool, PoolClient, QueryResultRow } from 'pg';
+import { requireDirectDatabaseUrl } from './database-config';
 
 export function createPool() {
   const connectionString = process.env.DATABASE_URL;
@@ -8,7 +9,7 @@ export function createPool() {
   }
 
   return new Pool({
-    connectionString,
+    connectionString: requireDirectDatabaseUrl(connectionString),
     enableChannelBinding: true,
     connectionTimeoutMillis: 5_000,
     query_timeout: 5_000,
@@ -58,7 +59,7 @@ export class Database implements OnModuleDestroy {
     }
   }
 
-  /** Session-scoped lock survives the worker's short transactions, without keeping one transaction open over network I/O. */
+  /** Requires a direct/session-preserving connection. Transaction poolers cannot hold this lock across worker commits. */
   async withAdvisoryLock<T>(namespace: number, key: number, work: (client: PoolClient) => Promise<T>) {
     const client = await this.connectionPool().connect();
     let acquired = false;
