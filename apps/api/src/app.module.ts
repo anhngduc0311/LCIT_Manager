@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
 import { MonitoringController } from './controllers/monitoring.controller';
 import { MonitoringService } from './models/monitoring.service';
+import { ExpiryMonitorService } from './models/expiry-monitor.service';
 import { AttachmentsController, PermissionsController } from './controllers/attachments.controller';
 import { AuditController } from './controllers/audit.controller';
 import { AuthController } from './controllers/auth.controller';
@@ -29,6 +30,6 @@ import { ImportsService } from './models/imports.service';
   controllers: [HealthController, AuthController, UsersController, AuditController, ...catalogControllers, ApplicationDatabasesController,
     ...infrastructureControllers, SearchController, AttachmentsController, PermissionsController, ImportsController, MonitoringController],
   providers: [Database, AuditService, AuthService, UsersService, CatalogService, SessionGuard, InfrastructureService, SearchService,
-    FileStore, PermissionsService, AttachmentsService, ImportsService, MonitoringService],
+    FileStore, PermissionsService, AttachmentsService, ImportsService, MonitoringService, ExpiryMonitorService],
 })
 export class AppModule {}

@@ -5,7 +5,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit",
-    "test": "npm run build && node --test --test-concurrency=1 test/phase1.test.cjs test/phase2-attachments.test.cjs test/phase2-imports.test.cjs test/phase3-monitoring.test.cjs",
+    "test": "npm run build && node --test --test-concurrency=1 test/phase1.test.cjs test/phase2-attachments.test.cjs test/phase2-imports.test.cjs test/phase3-monitoring.test.cjs test/phase3-expiry.test.cjs",
     "dev": "npm run build && npm start",
     "start": "node --env-file-if-exists=.env.example dist/main.js",
     "db:migrate": "npm run build && node --env-file-if-exists=.env.example dist/migrate.js",
