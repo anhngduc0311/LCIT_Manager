@@ -16,6 +16,8 @@ npm.cmd install
 
 API đọc cấu hình từ `apps/api/.env.example`. Tệp này đã chứa `DATABASE_URL` của database Neon dùng cho phát triển, nên không cần tạo `.env.local`. Tệp này chứa mật khẩu database, vì vậy chỉ giữ repo ở chế độ riêng tư và đổi mật khẩu Neon khi có người rời nhóm.
 
+`DATABASE_URL` của API phải dùng endpoint Neon **trực tiếp**, không có hậu tố `-pooler` trong hostname. Tác vụ giám sát giữ session advisory lock qua nhiều transaction ngắn; Neon pooler ở transaction mode không hỗ trợ cách giữ khóa này. Cấu hình mẫu đã dùng endpoint trực tiếp, và API từ chối khởi động nếu phát hiện hostname Neon `-pooler`. Nếu đã đặt `DATABASE_URL` trong môi trường Windows hoặc dịch vụ triển khai, cần đổi biến đó vì nó ưu tiên hơn tệp cấu hình. Tham khảo [Neon connection pooling](https://neon.com/docs/connect/connection-pooling).
+
 ```powershell
 npm.cmd run db:migrate
 ```
@@ -77,6 +79,8 @@ Trong Swagger UI tại `http://127.0.0.1:4000/docs`, gọi `POST /api/v1/auth/lo
 Lãnh đạo thấy danh mục theo đơn vị được cấp. Chuyên viên thấy ứng dụng được phân công và tài nguyên liên kết trong phạm vi. Chuyên viên có thể sửa `name`, `description` và `status` của ứng dụng được phân công. `serviceType` nhận `ordered`, `monitoring` hoặc `operations`. Guard phiên nằm trong `apps/api/src/guards/session.guard.ts`. Các hàm lọc `applicationScope`, `serverScope`, `domainScope` nằm trong `apps/api/src/models/access.ts`. Các thao tác ghi của người B có thể gọi `recordAudit` trong cùng transaction.
 
 Chạy `npm.cmd test --workspace @lcit/api` để kiểm tra băm mật khẩu. Đặt `LCIT_TEST_DATABASE_URL` tới một PostgreSQL **dùng riêng cho kiểm thử, chưa có schema `lcit`** để chạy thêm ca tích hợp migration, seed, phiên, phân quyền và nhật ký. Bộ kiểm thử tạo schema và dữ liệu riêng trong DB đó.
+
+Với Neon, `LCIT_TEST_DATABASE_URL` cũng phải dùng endpoint trực tiếp. Chuỗi có `-pooler` sẽ bị từ chối; không tự chuyển bộ kiểm thử sang database phát triển để né lỗi này.
 
 Giao diện Giai đoạn 1 dùng chung các màn hình cho trình duyệt và Tauri. Sau khi áp dụng migration `003_catalog_search.sql` và khởi động lại API, mở giao diện, đăng nhập, chọn **Tra cứu** và thử `10.42.0.15` với bộ dữ liệu mẫu. Quản trị có thể mở danh mục máy chủ, tên miền, tài khoản và phân công ngay trên giao diện. Lãnh đạo và Chuyên viên chỉ thấy bản ghi DNS được liên kết với ứng dụng họ có quyền xem. Các điểm TLS và cấu hình SSH/RDP dành cho Quản trị. Luồng cấp quyền mở kết nối và gọi trình khách Windows thuộc Giai đoạn 4.
 

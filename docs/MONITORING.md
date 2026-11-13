@@ -143,6 +143,10 @@ Runner ghi nhận bắt đầu trước khi gọi handler, rồi lưu thành cô
 
 Runner giữ session advisory lock trong cả lượt xử lý; các transaction ngắn không làm mất khóa. Một lần gọi trùng lúc đang chạy trả `skipped_running` và không tạo bản ghi chạy mới. Lần không có handler hoặc đã tắt lịch cũng không ghi nhận thành công. Nếu tác vụ ném lỗi SQL khiến transaction bị hủy, runner rollback trước khi ghi `failed`. Khi lỗi mất kết nối làm chưa thể lưu kết quả, lần chạy còn `running` được chuyển thành `interrupted` khi khởi động lại hoặc trước lần chạy tiếp theo, sau khi lấy được khóa. Khởi động một API khác khi khóa còn được giữ không đánh dấu nhầm tác vụ đang hoạt động.
 
+**Điều kiện bắt buộc:** `DATABASE_URL` phải trỏ endpoint trực tiếp hoặc kết nối giữ nguyên phiên PostgreSQL. Neon `-pooler` dùng transaction pooling, không hỗ trợ session advisory lock. Giữ một `pg.PoolClient` phía Node không ghim được backend PostgreSQL phía pooler. API đã chặn hostname Neon `-pooler` trước khi mở pool, cấu hình mẫu đã chuyển sang direct; không tự viết lại URL khi chạy. Các proxy khác cũng phải được cấu hình giữ phiên, vì không thể nhận diện chế độ proxy chỉ từ một hostname tùy ý. Xem [tài liệu Neon](https://neon.com/docs/connect/connection-pooling).
+
+Không thể chỉ thay `pg_try_advisory_lock` bằng `pg_try_advisory_xact_lock` trong runner hiện tại: các worker có COMMIT/ROLLBACK riêng, nên khóa transaction sẽ mất trước khi cả tác vụ hoàn tất. Giải pháp đang dùng là endpoint trực tiếp, giữ khóa qua các transaction ghi ngắn và tránh giữ transaction mở suốt thời gian chờ DNS/TLS. Thay đổi này không cần migration. Các biến môi trường triển khai đã đặt từ trước cần được cập nhật riêng và API cần khởi động lại.
+
 Khi tắt API bình thường, runner ngừng lịch và chờ tác vụ đang chạy; kết nối chuyên dụng được đóng để giải phóng khóa. Worker T3.3 phải có timeout và giới hạn song song để không giữ shutdown vô hạn. Unique constraint vẫn là lớp bảo vệ dữ liệu khi thử lại sau lỗi hoặc mất kết nối; không coi advisory lock là sự bảo đảm mọi tác động bên ngoài chỉ xảy ra một lần.
 
 ## Kiểm thử
