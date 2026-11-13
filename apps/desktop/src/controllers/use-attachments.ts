@@ -3,7 +3,7 @@ import { DownloadedFile, RequestApi } from '../models/api';
 import { AttachmentPage, Attachment, maxAttachmentBytes, Permission } from '../models/attachments';
 import { errorText, useRemote } from './use-remote';
 
-function saveFile({ blob, fileName }: DownloadedFile) {
+export function saveFile({ blob, fileName }: DownloadedFile) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;

@@ -19,7 +19,7 @@ export function Pager({ page, pageSize, total, change }: { page: number; pageSiz
   </div></div>;
 }
 
-function Picker({ api, kind, value, change, required, initialLabel = '' }: { api: RequestApi; kind: Kind; value: string; change: (value: string) => void; required?: boolean; initialLabel?: string }) {
+export function Picker({ api, kind, value, change, required, initialLabel = '' }: { api: RequestApi; kind: Kind; value: string; change: (value: string) => void; required?: boolean; initialLabel?: string }) {
   const [page, setPage] = useState(1);
   const [label, setLabel] = useState(initialLabel);
   const result = useRemote<Page<RecordItem>>(api, `/${kind}?page=${page}`);

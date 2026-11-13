@@ -1,13 +1,16 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ApiFailure, requestApi, RequestApi, Session } from '../models/api';
 import { catalogKinds, Kind } from '../models/catalog';
+import { demoRequest, isDemoPath } from '../models/demo-fixtures';
 
-type View = { kind: Kind | 'search' | 'health'; id?: string };
+export const toolViews = ['dashboard', 'alerts', 'reports', 'imports'] as const;
+export type ToolView = typeof toolViews[number];
+type View = { kind: Kind | ToolView | 'search' | 'health'; id?: string };
 function readView(): View {
   const params = new URLSearchParams(window.location.search);
   const kind = params.get('view') ?? '';
   const id = params.get('id');
-  if (kind === 'health') return { kind };
+  if (kind === 'health' || toolViews.includes(kind as ToolView)) return { kind: kind as ToolView | 'health' };
   if (!catalogKinds.includes(kind as Kind)) return { kind: 'search' };
   return { kind: kind as Kind, ...(id && /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(id) && { id }) };
 }
@@ -19,7 +22,7 @@ export function useWorkspace() {
   const [loggingOut, setLoggingOut] = useState(false);
   const token = session?.token;
   const api: RequestApi = useCallback(async <T,>(path: string, options?: Parameters<RequestApi>[1]) => {
-    try { return await requestApi<T>(path, options, token); }
+    try { return isDemoPath(path) ? await demoRequest<T>(path, options) : await requestApi<T>(path, options, token); }
     catch (error) {
       if (error instanceof ApiFailure && error.status === 401 && !options?.signal?.aborted) {
         setNotice('Phiên đăng nhập đã hết hạn. Hãy đăng nhập lại.');

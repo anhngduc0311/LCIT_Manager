@@ -13,6 +13,7 @@ import { AttachmentsController, PermissionsController } from './controllers/atta
 import { AuditController } from './controllers/audit.controller';
 import { AuthController } from './controllers/auth.controller';
 import { ApplicationDatabasesController, catalogControllers } from './controllers/catalog.controller';
+import { ReportsController } from './controllers/reports.controller';
 import { HealthController } from './controllers/health.controller';
 import { infrastructureControllers } from './controllers/infrastructure.controller';
 import { SearchController } from './controllers/search.controller';
@@ -26,6 +27,7 @@ import { AuthService } from './models/auth.service';
 import { CatalogService } from './models/catalog.service';
 import { Database } from './models/database';
 import { InfrastructureService } from './models/infrastructure.service';
+import { ReportsService } from './models/reports.service';
 import { SearchService } from './models/search.service';
 import { UsersService } from './models/users.service';
 import { ImportsController } from './controllers/imports.controller';
@@ -35,9 +37,9 @@ import { ImportsService } from './models/imports.service';
   imports: [ScheduleModule.forRoot()],
   controllers: [HealthController, AuthController, UsersController, AuditController, ...catalogControllers, ApplicationDatabasesController,
     ...infrastructureControllers, SearchController, AttachmentsController, PermissionsController, ImportsController, MonitoringController, MonitoringTargetsController,
-    AlertsController, NotificationsController],
+    AlertsController, NotificationsController, ReportsController],
   providers: [Database, AuditService, AuthService, UsersService, CatalogService, SessionGuard, InfrastructureService, SearchService,
     FileStore, PermissionsService, AttachmentsService, ImportsService, MonitoringService, ExpiryMonitorService,
-    NetworkProbe, NetworkMonitorService, MonitoringTargetsService, NotificationsService],
+    NetworkProbe, NetworkMonitorService, MonitoringTargetsService, NotificationsService, ReportsService],
 })
 export class AppModule {}
