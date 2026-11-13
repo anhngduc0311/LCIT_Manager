@@ -1,5 +1,5 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
-import { domainScope } from './access';
+import { domainNotificationScope } from './access';
 import { MonitoringRunContext, MonitoringService } from './monitoring.service';
 
 interface ExpiryResult { alertsCreated: number; notificationsCreated: number }
@@ -45,11 +45,7 @@ export class ExpiryMonitorService implements OnModuleInit {
         SELECT a.id,u.id FROM new_alerts a
         JOIN lcit.domains d ON d.id=COALESCE(a.domain_id,
           (SELECT t.domain_id FROM lcit.tls_endpoints t WHERE t.id=a.tls_endpoint_id))
-        JOIN lcit.users u ON u.status='active' AND u.deleted_at IS NULL AND (
-          u.role='admin'
-          OR (u.role='leader' AND ${domainScope('leader', 'd', 'u.id')})
-          OR (u.role='specialist' AND ${domainScope('specialist', 'd', 'u.id')})
-        )
+        JOIN lcit.users u ON ${domainNotificationScope('d', 'u')}
         ON CONFLICT (alert_id,recipient_id) DO NOTHING
         RETURNING id
       )

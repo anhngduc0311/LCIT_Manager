@@ -5,7 +5,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit",
-    "test": "npm run build && node --test --test-concurrency=1 test/phase1.test.cjs test/phase2-attachments.test.cjs test/phase2-imports.test.cjs test/phase3-monitoring.test.cjs test/phase3-expiry.test.cjs",
+    "test": "npm run build && node --test --test-concurrency=1 test/phase1.test.cjs test/phase2-attachments.test.cjs test/phase2-imports.test.cjs test/phase3-monitoring.test.cjs test/phase3-expiry.test.cjs test/phase3-network.test.cjs",
     "dev": "npm run build && npm start",
     "start": "node --env-file-if-exists=.env.example dist/main.js",
     "db:migrate": "npm run build && node --env-file-if-exists=.env.example dist/migrate.js",
@@ -22,6 +22,7 @@
     "cron": "^4.4.0",
     "exceljs": "^4.4.0",
     "fflate": "^0.8.3",
+    "ipaddr.js": "^1.9.1",
     "pg": "^8.16.3",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2"
