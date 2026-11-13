@@ -138,12 +138,13 @@ test('T3.3: approval permissions, durable outage/recovery, atomic notifications,
   process.env.MONITORING_EXPIRY_CRON = '0 0 0 1 1 *';
   process.env.MONITORING_DNS_TLS_CRON = '0 0 0 1 1 *';
   const { sha256 } = require('../dist/models/access');
-  const tokens = {};
+  const tokens = {}, userIds = {};
   for (const role of ['admin','leader','specialist']) {
     const id = randomUUID(), token = randomBytes(32).toString('base64url');
     await db.query("INSERT INTO lcit.users(id,username,display_name,password_hash,role) VALUES($1,$2,$2,'test-hash',$2)", [id, role]);
     await db.query("INSERT INTO lcit.sessions(token_hash,user_id,expires_at) VALUES($1,$2,now()+interval '1 hour')", [sha256(token), id]);
     tokens[role] = token;
+    userIds[role] = id;
   }
   const { rows: [domain] } = await db.query("INSERT INTO lcit.domains(name) VALUES('example.test') RETURNING id");
   const { rows: [dns] } = await db.query("INSERT INTO lcit.dns_records(domain_id,host,type,target) VALUES($1,'monitor.example.test','A','10.1.2.3') RETURNING id", [domain.id]);
@@ -205,6 +206,15 @@ test('T3.3: approval permissions, durable outage/recovery, atomic notifications,
   assert.deepEqual(await events(), ['outage','recovery']);
   assert.equal((await db.query('SELECT observed_expiry_at FROM lcit.tls_endpoints WHERE id=$1', [endpoint.id])).rows[0].observed_expiry_at.toISOString(), '2028-01-01T00:00:00.000Z');
   assert.equal((await db.query('SELECT count(*) FROM lcit.notifications')).rows[0].count, '4', 'Only admin has scope to these unlinked endpoints.');
+  // DNS visibility is narrower than domain visibility: only exact app_dns_records links count.
+  const { rows: [orgA] } = await db.query("INSERT INTO lcit.organizations(code,name) VALUES('A','A') RETURNING id");
+  const { rows: [orgB] } = await db.query("INSERT INTO lcit.organizations(code,name) VALUES('B','B') RETURNING id");
+  const { rows: [appA] } = await db.query("INSERT INTO lcit.applications(code,name,organization_id,service_type) VALUES('A','A',$1,'operations') RETURNING id", [orgA.id]);
+  const { rows: [appB] } = await db.query("INSERT INTO lcit.applications(code,name,organization_id,service_type) VALUES('B','B',$1,'operations') RETURNING id", [orgB.id]);
+  await db.query('INSERT INTO lcit.app_domains(application_id,domain_id) VALUES($1,$2)', [appB.id, domain.id]);
+  await db.query('INSERT INTO lcit.user_organizations(user_id,organization_id) VALUES($1,$2)', [userIds.leader, orgB.id]);
+  await db.query('INSERT INTO lcit.app_dns_records(application_id,dns_record_id) VALUES($1,$2)', [appA.id, dns.id]);
+  await db.query('INSERT INTO lcit.app_assignments(user_id,application_id) VALUES($1,$2)', [userIds.specialist, appA.id]);
 
   // Replaying a recorded job/target pair must not advance its streak or duplicate a transition.
   const worker = app.get(NetworkMonitorService);
@@ -248,6 +258,9 @@ test('T3.3: approval permissions, durable outage/recovery, atomic notifications,
   await run();
   assert.equal((await state()).health, 'down');
   assert.deepEqual(await events(), ['outage','recovery','outage']);
+  const newest = (await db.query("SELECT id FROM lcit.alerts WHERE dns_record_id=$1 ORDER BY created_at DESC LIMIT 1", [dns.id])).rows[0];
+  const recipients = (await db.query('SELECT recipient_id FROM lcit.notifications WHERE alert_id=$1 ORDER BY recipient_id', [newest.id])).rows.map((row) => row.recipient_id);
+  assert.deepEqual(recipients, [userIds.admin,userIds.specialist].sort());
   const history = await call(`/dns/${dns.id}/checks?pageSize=2`);
   assert.equal(history.items.length, 2);
   assert.ok(history.total > 2);

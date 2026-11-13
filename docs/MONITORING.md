@@ -1,12 +1,12 @@
-# Giám sát — T3.1–T3.2
+# Giám sát — T3.1–T3.3
 
-T3.1 bổ sung migration `006_monitoring.sql`, lịch chạy phía máy chủ, trạng thái lần chạy gần nhất và ràng buộc chống trùng. T3.2 đã nối tác vụ đối chiếu hạn, tạo cảnh báo và thông báo theo phạm vi trong cùng lần ghi. Kiểm tra DNS/TLS thực tế thuộc T3.3; API cảnh báo/thông báo và trạng thái đã đọc thuộc T3.4.
+T3.1 bổ sung migration `006_monitoring.sql`, lịch chạy phía máy chủ, trạng thái lần chạy gần nhất và ràng buộc chống trùng. T3.2 đã nối tác vụ đối chiếu hạn. T3.3 bổ sung `007_network_monitoring.sql`, duyệt đích DNS/TLS, kiểm tra mạng và trạng thái gián đoạn/phục hồi. API cảnh báo/thông báo và trạng thái đã đọc thuộc T3.4.
 
 ## Áp dụng và cấu hình
 
 Chạy `npm.cmd run db:migrate` rồi khởi động lại API. Migration thêm bảng và chỉ mục, không xóa dữ liệu danh mục. Lệnh migrate áp dụng mỗi tệp một lần và bỏ qua khi chạy lại.
 
-T3.2 sử dụng các bảng của `006_monitoring.sql`, không có migration mới. Nếu đã áp dụng T3.1, chỉ cần build và khởi động lại API để nạp tác vụ đối chiếu hạn.
+T3.2 sử dụng các bảng của `006_monitoring.sql`. T3.3 cần áp dụng thêm `007_network_monitoring.sql` trước khi build và khởi động lại API. Migration mới thêm bảng cấu hình đích, trạng thái gián đoạn và kết quả `blocked`; giữ nguyên lịch sử hiện có. Không có đích nào tự động được bật sau migration.
 
 API đọc cấu hình qua môi trường, với giá trị mẫu trong `apps/api/.env.example`:
 
@@ -19,7 +19,57 @@ API đọc cấu hình qua môi trường, với giá trị mẫu trong `apps/ap
 
 Biểu thức mẫu có sáu trường, bắt đầu bằng giây. Cron hoặc múi giờ không hợp lệ làm API từ chối khởi động. Thay đổi cấu hình cần khởi động lại. Lịch dùng NestJS Schedule, chạy khi API đang hoạt động; không khởi chạy một tác vụ ngay khi API bật lại và không tự phát lại mọi lượt đã bỏ lỡ. Tác vụ đối chiếu hạn xét hạn hiện tại và chọn mốc khẩn nhất đang áp dụng sau thời gian ngừng chạy.
 
-Tác vụ `expiry` đã có handler và chuyển sang `scheduled` khi bật lịch. Tác vụ `dns_tls` vẫn ở `waiting_handler` cho tới T3.3, không tạo cron timer và không ghi nhận thành công giả. Khi tắt lịch, cả hai trả `disabled`. Chỉ bật một tiến trình lịch trong pilot theo SPEC.
+Cả `expiry` và `dns_tls` đã có handler và chuyển sang `scheduled` khi bật lịch. Khi tắt lịch, cả hai trả `disabled`. Nếu chưa duyệt đích, lịch DNS/TLS vẫn có thể chạy thành công nhưng không gửi yêu cầu kiểm tra nào. Chỉ bật một tiến trình lịch trong pilot theo SPEC.
+
+## Kiểm tra mạng — T3.3
+
+Các đích chỉ được kiểm tra khi Quản trị đã bật chúng bằng API và chúng thỏa chính sách mạng phía máy chủ. Chỉ thêm một bản ghi DNS hoặc endpoint TLS vào danh mục chưa làm phát sinh kiểm tra tự động.
+
+| Biến môi trường | Mặc định | Ý nghĩa |
+| --- | --- | --- |
+| `MONITORING_ALLOWED_HOSTS` | Rỗng | Hostname chính xác hoặc mẫu `*.example.test`, phân cách bằng dấu phẩy; mẫu chỉ khớp tên con, không khớp tên gốc |
+| `MONITORING_ALLOWED_CIDRS` | Rỗng | Các vùng IPv4/IPv6 được phép, ví dụ `10.42.0.0/16,2001:db8::/32` |
+| `MONITORING_ALLOWED_TLS_PORTS` | `443` | Danh sách cổng TLS được phép |
+| `MONITORING_CHECK_TIMEOUT_MS` | `5000` | Tổng thời gian mỗi phép kiểm, gồm DNS và bắt tay TLS; tối đa 30.000 ms |
+| `MONITORING_CHECK_CONCURRENCY` | `4` | Số phép kiểm mạng đồng thời; từ 1 đến 16 |
+
+Hostname và SNI đều phải được phép. Host là IP trực tiếp được xét bằng CIDR. CIDR rỗng không cho phép kết nối TLS hoặc chấp nhận kết quả A/AAAA. Không suy diễn việc cho phép mạng từ dữ liệu người dùng nhập. Địa chỉ unspecified, broadcast, multicast và link-local bị từ chối dù cấu hình CIDR rộng; IPv4-mapped IPv6 dùng chính sách IPv4. Loopback chỉ dùng được khi vận hành chủ động cho phép bằng CIDR, như trong kiểm thử cục bộ.
+
+DNS dùng resolver của máy chạy API, truy vấn đúng loại A/AAAA/CNAME/NS/PTR/MX/TXT/SRV/CAA đã lưu. Thành công nghĩa là truy vấn trả câu trả lời không rỗng; chưa đối chiếu nội dung với trường `target`. Với A/AAAA, toàn bộ địa chỉ trả về phải nằm trong CIDR được phép. Giá trị TXT/MX/SRV không được coi là lệnh hay đích để mở kết nối tiếp. Bản ghi wildcard không được dò tự động.
+
+TLS phân giải A và AAAA, kiểm tra toàn bộ tập địa chỉ rồi kết nối trực tiếp tới **một IP đã kiểm tra**, giữ hostname/SNI cho xác thực chứng thư. Không phân giải lại trong bước mở socket, không chuyển hướng và không tự đổi đích theo nội dung trả về. Một địa chỉ ngoài chính sách trong tập câu trả lời làm cả phép kiểm bị chặn. Bản hiện tại dùng địa chỉ hợp lệ đầu tiên; không thử lần lượt mọi IP khi một máy trong cụm thất bại.
+
+TLS yêu cầu tối thiểu TLS 1.2, kiểm tra danh tính hostname và kết quả xác thực chuỗi chứng thư. Handshake được giữ mở đủ để phân loại chứng thư hết hạn; cấu hình này không biến chứng thư không tin cậy hoặc sai hostname thành thành công. Hạn của chứng thư hợp lệ hoặc chứng thư được phân loại `CERT_HAS_EXPIRED` được ghi vào `tls_endpoints.observed_expiry_at` để tác vụ T3.2 đối chiếu. Lỗi không tin cậy/sai danh tính không ghi đè hạn đã quan sát. Nếu dùng CA nội bộ, cấu hình kho tin cậy của Node khi khởi động API, ví dụ `NODE_EXTRA_CA_CERTS`; không tải CA từ yêu cầu API.
+
+### Duyệt đích và xem kết quả
+
+Các API sau yêu cầu phiên Quản trị; Lãnh đạo và Chuyên viên nhận 403:
+
+- `PUT /api/v1/monitoring/targets/dns/{dnsRecordId}` hoặc `/tls/{tlsEndpointId}` với `{"version":0,"enabled":true}` để duyệt lần đầu. `version` là phiên bản cấu hình giám sát, độc lập phiên bản tên miền.
+- Khi sửa hoặc bật/tắt lại, gửi `version` hiện hành. Mỗi lần duyệt chụp lại cấu hình hiện tại và đặt lại trạng thái sức khỏe về `unknown`. Dữ liệu lịch sử vẫn giữ. Tắt bằng `enabled:false`.
+- `GET /api/v1/monitoring/targets?page=1&pageSize=25`: danh sách đích đã duyệt, cấu hình hiện tại, `needsApproval`, `health`, `consecutiveFailures`, kết quả gần nhất và mã lý do.
+- `GET /api/v1/monitoring/targets/{type}/{endpointId}/checks`: lịch sử theo đích, có phân trang; `type` nhận `dns` hoặc `tls`. Đích thuộc tên miền đã lưu trữ không được trả về.
+
+Không có API chạy tức thì hoặc nhập hostname tùy ý để dò mạng. `PUT` chỉ tham chiếu tài nguyên đã lưu trong danh mục. Duyệt/bật/tắt ghi audit cùng transaction. Sửa host, cổng, SNI hoặc cấu hình DNS sau khi duyệt làm `needsApproval:true`; lần chạy ghi `blocked / CONFIG_CHANGED` và không gọi mạng cho cấu hình mới cho tới khi Quản trị duyệt lại. Kết quả đang bay bị bỏ nếu phiên bản bị đổi, đích bị tắt, cấu hình thay đổi hoặc tên miền bị lưu trữ trước khi ghi kết quả.
+
+### Trạng thái và sự kiện
+
+| Kết quả | Ý nghĩa |
+| --- | --- |
+| `success` | Truy vấn DNS có câu trả lời hoặc TLS xác thực thành công |
+| `dns_error` | Không phân giải được hoặc không có câu trả lời |
+| `timeout` | Hết thời gian kiểm tra DNS hoặc tổng thời gian kết nối |
+| `tls_error` | Lỗi kết nối, bắt tay, chuỗi chứng thư hoặc hostname |
+| `expired` | Chứng thư của endpoint được xác định đã hết hạn |
+| `blocked` | Đích, cổng, địa chỉ hoặc cấu hình không được phép; không kết luận dịch vụ hỏng |
+
+`errorCode` chứa mã cố định như `DNS_LOOKUP_FAILED`, `CHECK_TIMEOUT`, `TLS_UNTRUSTED`, `TLS_IDENTITY_INVALID`, `CERT_HAS_EXPIRED`, `ADDRESS_NOT_ALLOWED`. Không lưu thông điệp exception thô. Phép kiểm chỉ phản ánh khả năng truy cập từ máy chạy lịch, không chứng minh ứng dụng hoạt động đầy đủ.
+
+Mỗi đích có trạng thái `unknown`, `up`, `down` và bộ đếm lỗi riêng. Một lần lỗi không tạo gián đoạn; hai lỗi liên tiếp mới chuyển sang `down` và tạo một `outage`. Các lần lỗi tiếp theo không tạo thêm sự kiện. Một `success` đặt lại bộ đếm; nếu trước đó `down` thì tạo đúng một `recovery`. Thành công đầu tiên từ `unknown` không phải sự kiện phục hồi. `blocked` xóa chuỗi lỗi đang đếm và giữ trạng thái sức khỏe, không tạo outage/recovery.
+
+Kết quả kiểm tra, cập nhật trạng thái, hạn TLS quan sát, sự kiện và thông báo được ghi trong một transaction ngắn cho từng đích; không giữ transaction khi gọi mạng. Khóa duy nhất theo lượt chạy và endpoint ngăn một kết quả gửi lại làm tăng bộ đếm hai lần. Trạng thái được lưu trong PostgreSQL nên không mất khi khởi động lại. Một lượt có lỗi lưu dữ liệu nhận trạng thái tác vụ `failed`; các đích đã commit trước đó vẫn giữ kết quả và được kiểm tra ở lượt tiếp theo.
+
+Thông báo sự kiện TLS dùng phạm vi tên miền. Sự kiện DNS dùng **liên kết đúng bản ghi DNS** với ứng dụng mà người nhận được phép xem; quyền xem tên miền cha không tự cấp quyền nhận chi tiết DNS khác. Chỉ tài khoản hoạt động, chưa xóa được nhận; các đường liên kết trùng không tạo nhiều thông báo. T3.4 phải kiểm tra lại quyền hiện hành khi cung cấp dữ liệu đọc.
 
 ## Đối chiếu hạn — T3.2
 
@@ -77,17 +127,17 @@ Trạng thái lần chạy là `running`, `succeeded`, `failed`, `interrupted`. 
 | `alerts` | Cảnh báo hạn hoặc sự kiện gián đoạn/phục hồi; FK tới đúng một tài nguyên; nhãn nguồn và khóa chống trùng |
 | `notifications` | Một thông báo cho mỗi cặp cảnh báo–người nhận; `read_at` và chỉ mục danh sách/chưa đọc theo người nhận |
 
-`check_runs.status` phân biệt `success`, `dns_error`, `timeout`, `tls_error`, `expired`. Phép kiểm DNS không được nhận trạng thái lỗi TLS/hết hạn. Kết quả có địa chỉ đã phân giải, hạn TLS quan sát được nếu có và mã lỗi tùy chọn. Không lưu chuỗi exception thô. Cặp `check_run_id` và ID đích trong cảnh báo được kiểm tra bằng khóa ngoại ghép để không tham chiếu kết quả của endpoint khác.
+`check_runs.status` phân biệt `success`, `dns_error`, `timeout`, `tls_error`, `expired`, `blocked`. Phép kiểm DNS không được nhận trạng thái lỗi TLS/hết hạn. Kết quả có địa chỉ đã phân giải, hạn TLS quan sát được nếu có và mã lỗi tùy chọn. Không lưu chuỗi exception thô. Cặp `check_run_id` và ID đích trong cảnh báo được kiểm tra bằng khóa ngoại ghép để không tham chiếu kết quả của endpoint khác. Bảng `monitoring_targets` lưu duyệt đích, bộ đếm lỗi và tham chiếu kết quả gần nhất.
 
 Cảnh báo hạn có nguồn `manual_domain`, `manual_tls` hoặc `observed_tls`, với `expiry_date` và `threshold_days`. Khóa duy nhất gồm loại tài nguyên, ID, nguồn, ngày hạn và mốc. Các mốc nhận `90`, `30`, `14`, `7`, `0`; `0` dành cho **quá hạn**, còn ngày hết hạn có số ngày còn lại bằng 0 vẫn dùng mốc 7 theo SPEC. Nguồn nhập tay và quan sát được độc lập; gia hạn sang ngày hạn mới tạo kỳ mới.
 
-Sự kiện gián đoạn/phục hồi có nguồn `dns` hoặc `tls`, `check_run_id` và `transition_key` bắt buộc. Khóa duy nhất theo tài nguyên, loại kiểm tra và `transition_key`. T3.3 phải chọn một khóa ổn định cho mỗi lần chuyển trạng thái và dùng lại khi thử lại, thay vì tạo khóa mới cho mỗi lần lỗi liên tiếp. Nền tảng này chưa thực hiện quy tắc hai lần lỗi/một lần thành công; đó là T3.3.
+Sự kiện gián đoạn/phục hồi có nguồn `dns` hoặc `tls`, `check_run_id` và `transition_key` bắt buộc. Khóa duy nhất theo tài nguyên, loại kiểm tra và `transition_key`. T3.3 dùng ID kết quả gây chuyển trạng thái làm khóa ổn định, không tạo sự kiện cho lỗi liên tiếp sau khi đã down.
 
 Các thời điểm lưu `timestamptz`; ngày hạn nghiệp vụ lưu `date`. Các bảng có FK giữ toàn vẹn lịch sử: tài nguyên đã có kết quả/cảnh báo không thể xóa vật lý khi còn được tham chiếu. Có thể lưu trữ tài nguyên cha theo cơ chế danh mục hiện có. Không có xóa dây chuyền lịch sử. Thời hạn lưu kết quả và thông báo cần chốt ở D-04.
 
 ## Nối tác vụ T3.2–T3.3
 
-Provider nghiệp vụ gọi `MonitoringService.register(key, handler)` trong `onModuleInit`; mỗi key chỉ nhận một handler. `ExpiryMonitorService` đã đăng ký key `expiry`. T3.3 nối key `dns_tls`. Handler nhận `{ runId, client }`, trong đó `client` là kết nối PostgreSQL riêng đang giữ advisory lock của tác vụ.
+Provider nghiệp vụ gọi `MonitoringService.register(key, handler)` trong `onModuleInit`; mỗi key chỉ nhận một handler. `ExpiryMonitorService` đăng ký key `expiry`; `NetworkMonitorService` đăng ký `dns_tls`. Handler nhận `{ runId, client }`, trong đó `client` là kết nối PostgreSQL riêng đang giữ advisory lock của tác vụ.
 
 Runner ghi nhận bắt đầu trước khi gọi handler, rồi lưu thành công/thất bại khi kết thúc. Dùng kết nối `client` được cấp cho truy vấn của handler. Nếu cần nhiều thay đổi nguyên tử, mở transaction ngắn và luôn `COMMIT`/`ROLLBACK` trước khi trả về. Không giữ transaction trong lúc chờ DNS/TLS. Khi ghi cảnh báo và danh sách người nhận ở T3.2–T3.4, chúng phải ở cùng transaction và dùng `ON CONFLICT` phù hợp với các unique index. Người nhận và dữ liệu trả về vẫn phải lọc theo quyền hiện hành.
 
@@ -100,3 +150,5 @@ Khi tắt API bình thường, runner ngừng lịch và chờ tác vụ đang c
 `npm.cmd test --workspace @lcit/api` kiểm tra cấu hình lịch và múi giờ. Đặt `LCIT_TEST_DATABASE_URL` tới PostgreSQL dùng riêng, **chưa có schema `lcit`**, để chạy thêm migration hai lần, FK/check constraint, chống trùng cảnh báo/thông báo/kết quả kiểm tra, quyền API trạng thái, khóa giữa hai runner, lưu lỗi và phục hồi sau khởi động lại. Kiểm thử dùng handler giả, không gửi yêu cầu DNS/TLS ra mạng.
 
 Bộ kiểm thử T3.2 chạy tác vụ thật trên dữ liệu tổng hợp với thời điểm cố định: đủ mốc và ranh giới 90/30/14/7, ngày 0, quá hạn, lỡ lịch, gia hạn, hai nguồn TLS, UTC qua ngày tại Việt Nam, phạm vi hai đơn vị và máy chủ dùng chung, tài khoản khóa/xóa, hoàn tác khi thông báo lỗi và chạy đồng thời. Có ca gọi qua runner thực để xác nhận việc nối tác vụ và lưu trạng thái.
+
+Bộ kiểm thử T3.3 dùng resolver giả và máy chủ TLS cục bộ với CA/chứng thư chỉ dành cho kiểm thử, không gọi đích bên ngoài. Phân biệt thành công, lỗi DNS, timeout, sai danh tính, không tin cậy, hết hạn; kiểm tra tập DNS pha địa chỉ bị cấm, IP ghim, IPv4-mapped IPv6, giới hạn song song, quyền duyệt đích, lỗi thoáng qua, outage/recovery chống lặp, vô hiệu hóa khi đang chạy và hoàn tác khi thông báo lỗi.
