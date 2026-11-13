@@ -92,7 +92,7 @@ test('T3.1: migration integrity, duplicate protection, persistent job status, lo
   assert.equal(jobs.items.length, 2);
   assert.ok(jobs.items.every((j) => j.lastRun === null));
   assert.equal(jobs.items.find((j) => j.key === 'expiry').state, 'scheduled');
-  assert.equal(jobs.items.find((j) => j.key === 'dns_tls').state, 'waiting_handler');
+  assert.equal(jobs.items.find((j) => j.key === 'dns_tls').state, 'scheduled');
   const registry = new SchedulerRegistry();
   const monitoring = isolatedMonitoring = new MonitoringService(app.get(Database), registry);
   assert.deepEqual(await monitoring.run('dns_tls'), { status: 'skipped_unregistered' });

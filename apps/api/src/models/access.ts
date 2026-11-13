@@ -58,6 +58,13 @@ export function domainScope(role: Role, alias: string, actorParam: string) {
     WHERE app.archived_at IS NULL AND ${applicationScope(role, 'app', actorParam)} AND ${domainLinkedToApplication(alias, 'app')})`;
 }
 
+/** Trusted SQL aliases only. Shared by scheduled workers when creating scoped notifications. */
+export function domainNotificationScope(domain: string, user: string) {
+  return `${user}.status='active' AND ${user}.deleted_at IS NULL AND (
+    ${user}.role='admin' OR (${user}.role='leader' AND ${domainScope('leader', domain, `${user}.id`)})
+    OR (${user}.role='specialist' AND ${domainScope('specialist', domain, `${user}.id`)}))`;
+}
+
 export function domainLinkedToApplication(domain: string, app: string) {
   return `(EXISTS (SELECT 1 FROM lcit.app_domains rel WHERE rel.application_id = ${app}.id AND rel.domain_id = ${domain}.id)
       OR EXISTS (SELECT 1 FROM lcit.app_dns_records rel JOIN lcit.dns_records dns ON dns.id = rel.dns_record_id
