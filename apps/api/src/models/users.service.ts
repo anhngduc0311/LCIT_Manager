@@ -84,6 +84,7 @@ export class UsersService {
       `, [id, username, displayName, role, status, hash]);
 
       if (role && role !== existing.role) {
+        await client.query('DELETE FROM lcit.access_endpoint_grants WHERE user_id = $1', [id]);
         await client.query('DELETE FROM lcit.user_organizations WHERE user_id = $1', [id]);
         await client.query('DELETE FROM lcit.app_assignments WHERE user_id = $1', [id]);
         await recordAudit(client, { actorId: request.actor.id, action: 'user.role.change', targetType: 'user', targetId: id, requestId: requestId(request) });
@@ -122,6 +123,7 @@ export class UsersService {
       await client.query('DELETE FROM lcit.user_organizations WHERE user_id = $1', [id]);
       await client.query('DELETE FROM lcit.app_assignments WHERE user_id = $1', [id]);
       await client.query('DELETE FROM lcit.user_permissions WHERE user_id = $1', [id]);
+      await client.query('DELETE FROM lcit.access_endpoint_grants WHERE user_id = $1', [id]);
       await recordAudit(client, { actorId: actor.id, action: 'user.delete', targetType: 'user', targetId: id, requestId: requestId(request) });
     });
   }

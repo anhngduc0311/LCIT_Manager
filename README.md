@@ -116,6 +116,12 @@ Desktop có thêm các màn hình **Tổng quan**, **Cảnh báo**, **Báo cáo*
 
 Màn hình **Nhập Excel** dùng API T2.2–T2.4 theo [docs/IMPORT_API.md](docs/IMPORT_API.md); màn hình **Cảnh báo**, chuông và thông báo Windows dùng API T3.4 theo [docs/NOTIFICATIONS_API.md](docs/NOTIFICATIONS_API.md).
 
+## Cấp quyền kết nối — T4.1
+
+Đã có API `POST /api/v1/access-endpoints/{id}/launch` kiểm tra quyền và trả đúng đích SSH/RDP đã lưu, kèm audit quyết định. Cả Quản trị và Chuyên viên cần quyền riêng trên đích; Chuyên viên còn cần máy chủ trong phạm vi phân công. Lãnh đạo không được mở kết nối. Sửa đích làm quyền cũ hết hiệu lực và cần cấp lại.
+
+Chạy `npm.cmd run db:migrate` để áp dụng `008_access_endpoint_grants.sql` rồi khởi động lại API. Quản trị cấp/thu hồi bằng `PUT`/`DELETE /api/v1/users/{userId}/access-endpoints/{endpointId}`. Desktop lấy danh sách đích được phép qua `GET /api/v1/servers/{serverId}/access-endpoints`. Xem [hợp đồng và audit T4.1](docs/ACCESS_API.md) cùng [fixture SSH/RDP](fixtures/access-launch.json). Mở trình khách Windows và kết quả khởi chạy thuộc T4.2.
+
 ## Build và chạy ứng dụng Windows
 
 Để chạy bản Tauri, khởi động API như ở bước 3, sau đó chạy `npm.cmd run desktop:dev` trong cửa sổ PowerShell riêng.
