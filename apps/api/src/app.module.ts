@@ -9,6 +9,8 @@ import { MonitoringTargetsService } from './models/monitoring-targets.service';
 import { MonitoringTargetsController } from './controllers/monitoring-targets.controller';
 import { AlertsController, NotificationsController } from './controllers/notifications.controller';
 import { NotificationsService } from './models/notifications.service';
+import { AccessLaunchController } from './controllers/access-launch.controller';
+import { AccessLaunchService } from './models/access-launch.service';
 import { AttachmentsController, PermissionsController } from './controllers/attachments.controller';
 import { AuditController } from './controllers/audit.controller';
 import { AuthController } from './controllers/auth.controller';
@@ -37,9 +39,9 @@ import { ImportsService } from './models/imports.service';
   imports: [ScheduleModule.forRoot()],
   controllers: [HealthController, AuthController, UsersController, AuditController, ...catalogControllers, ApplicationDatabasesController,
     ...infrastructureControllers, SearchController, AttachmentsController, PermissionsController, ImportsController, MonitoringController, MonitoringTargetsController,
-    AlertsController, NotificationsController, ReportsController],
+    AlertsController, NotificationsController, ReportsController, AccessLaunchController],
   providers: [Database, AuditService, AuthService, UsersService, CatalogService, SessionGuard, InfrastructureService, SearchService,
     FileStore, PermissionsService, AttachmentsService, ImportsService, MonitoringService, ExpiryMonitorService,
-    NetworkProbe, NetworkMonitorService, MonitoringTargetsService, NotificationsService, ReportsService],
+    NetworkProbe, NetworkMonitorService, MonitoringTargetsService, NotificationsService, ReportsService, AccessLaunchService],
 })
 export class AppModule {}
