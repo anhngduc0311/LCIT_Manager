@@ -6,7 +6,7 @@
  *   PUT    /users/{id}/access-endpoints/{endpointId}   -> 204                   (grant the current saved configuration)
  *   DELETE /users/{id}/access-endpoints/{endpointId}   -> 204
  * The launch response is the only source of protocol, host and port for a connection. Opening the client is the
- * Tauri command `launch_access` (src-tauri/src/launch.rs).
+ * SSH uses `ssh_open` with a native PTY and xterm.js; RDP uses `launch_access`.
  */
 export type AccessProtocol = 'ssh' | 'rdp';
 
@@ -40,8 +40,8 @@ export function describeOutcome(outcome: LaunchOutcome, target: { protocol: Acce
   const network = 'Kiểm tra VPN hoặc mạng, địa chỉ, cổng và máy đích đã chạy dịch vụ.';
   switch (outcome.status) {
     case 'started':
-      return { tone: 'ok', text: target.protocol === 'ssh'
-        ? `Đã mở cửa sổ SSH tới ${where}. Đăng nhập trực tiếp trong cửa sổ đó. Nếu cửa sổ báo lỗi kết nối, ${network.toLowerCase()}`
+      return { tone: target.protocol === 'ssh' ? 'warn' : 'ok', text: target.protocol === 'ssh'
+        ? `Đã mở SSH tới ${where}; đang chờ kết nối hoặc đăng nhập. Nếu chưa có phản hồi, SSH chờ tối đa 10 giây để kết nối. ${network}`
         : `Đã mở Remote Desktop tới ${where}. Nhập tài khoản trong cửa sổ Remote Desktop. Nếu không kết nối được, ${network.toLowerCase()}` };
     case 'exited_early':
       return { tone: 'error', text: `${client} đã đóng ngay sau khi mở (mã ${outcome.exitCode ?? '?'}), nhiều khả năng không kết nối được tới ${where}. ${network}` };

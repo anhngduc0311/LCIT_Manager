@@ -19,6 +19,7 @@ export function useEndpoints(api: RequestApi, serverId: string) {
  */
 export function useLaunch(api: RequestApi) {
   const [busy, setBusy] = useState('');
+  const [terminal, setTerminal] = useState<AccessEndpoint>();
   const [report, setReport] = useState<LaunchReport & { endpointId: string }>();
 
   async function launch(endpoint: AccessEndpoint) {
@@ -29,6 +30,7 @@ export function useLaunch(api: RequestApi) {
         setReport({ endpointId: endpoint.id, tone: 'warn', text: 'SSH/RDP chỉ mở được trong ứng dụng LCIT Manager trên Windows, không mở được từ trình duyệt.' });
         return;
       }
+      if (endpoint.protocol === 'ssh') { setTerminal(endpoint); return; }
       const grant = await api<AccessLaunchResponse>(`/access-endpoints/${endpoint.id}/launch`, { method: 'POST' });
       const { invoke } = await import('@tauri-apps/api/core');
       const outcome = await invoke<LaunchOutcome>('launch_access', {
@@ -42,7 +44,7 @@ export function useLaunch(api: RequestApi) {
     }
   }
 
-  return { launch, busy, report };
+  return { launch, busy, report, terminal, closeTerminal: () => setTerminal(undefined) };
 }
 
 export function useGrants(api: RequestApi, userId: string) {

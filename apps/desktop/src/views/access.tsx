@@ -5,6 +5,7 @@ import { Page, RecordItem, RequestApi } from '../models/api';
 import { AccessEndpoint, protocolName } from '../models/access';
 import { Picker } from './catalog';
 import styles from './reports.module.css';
+import { SshTerminal } from './ssh-terminal';
 
 const toneBadge = { ok: styles.badgeNotice, warn: styles.badgeWarning, error: styles.badgeCritical } as const;
 const toneIcon = { ok: '✓', warn: '◔', error: '⚠' } as const;
@@ -13,7 +14,7 @@ const dateTime = new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyl
 /** "Kết nối SSH/RDP" on a server's detail screen: administrators and specialists, never leaders. */
 export function AccessPanel({ api, serverId, actorId, admin }: { api: RequestApi; serverId: string; actorId: string; admin: boolean }) {
   const { result, reload } = useEndpoints(api, serverId);
-  const { launch, busy, report } = useLaunch(api);
+  const { launch, busy, report, terminal, closeTerminal } = useLaunch(api);
   const [granting, setGranting] = useState('');
   const [error, setError] = useState('');
   const items = result?.data?.items ?? [];
@@ -28,7 +29,7 @@ export function AccessPanel({ api, serverId, actorId, admin }: { api: RequestApi
 
   return <div className="subpanel" aria-busy={Boolean(busy)}><div className="section-title"><h3>Kết nối SSH/RDP</h3>
     <button className="secondary" disabled={Boolean(busy)} onClick={reload}>Tải lại</button></div>
-    <p className="muted">Mỗi lần bấm, hệ thống kiểm tra quyền và ghi nhật ký rồi mới mở trình khách của Windows. Bạn đăng nhập trực tiếp vào máy đích trong cửa sổ đó.
+    <p className="muted">SSH mở terminal ngay trong ứng dụng; RDP mở Remote Desktop của Windows. Hệ thống kiểm tra quyền và ghi nhật ký trước mỗi kết nối. Bạn đăng nhập trực tiếp vào máy đích.
       Cần có VPN hoặc đường mạng tới máy đích.</p>
     {!result && <p role="status">Đang tải điểm truy cập…</p>}
     {result?.error && <p className="error" role="alert">{result.error}</p>}
@@ -43,8 +44,9 @@ export function AccessPanel({ api, serverId, actorId, admin }: { api: RequestApi
         <div className="actions">
           {admin && !endpoint.canLaunch && <button className="secondary" disabled={Boolean(granting)} onClick={() => void grantSelf(endpoint)}>
             {granting === endpoint.id ? 'Đang cấp…' : 'Cấp quyền cho tôi'}</button>}
-          <button disabled={!endpoint.canLaunch || Boolean(busy)} onClick={() => void launch(endpoint)}>{busy === endpoint.id ? 'Đang mở…' : 'Kết nối'}</button>
+          <button disabled={!endpoint.canLaunch || Boolean(busy) || Boolean(terminal)} onClick={() => void launch(endpoint)}>{busy === endpoint.id ? 'Đang mở…' : 'Kết nối'}</button>
         </div></li>)}</ul>)}
+    {terminal && <SshTerminal key={terminal.id} api={api} endpoint={terminal} close={closeTerminal} />}
   </div>;
 }
 

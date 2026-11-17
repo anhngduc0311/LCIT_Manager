@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 import './styles.css';
+import '@xterm/xterm/css/xterm.css';
 
 export const metadata: Metadata = { title: 'LCIT Manager' };
 
