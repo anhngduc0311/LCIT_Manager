@@ -4,6 +4,8 @@ Nền tảng phát triển cho ứng dụng quản lý hạ tầng. Desktop dùn
 
 ## Chạy lần đầu sau khi clone trên Windows
 
+API dùng chung đã có tại **`https://api.akatruyen.com`** qua Cloudflare Tunnel. Người dùng phần mềm không cần VPN để gọi API; database vẫn ở mạng nội bộ. Quản trị có thể dùng [pgAdmin qua Tunnel có Cloudflare Access](docs/PGADMIN_TUNNEL.md) mà không cần VPN. Khi build giao diện/bộ cài cho người khác, đặt `NEXT_PUBLIC_API_URL=https://api.akatruyen.com` trước khi build. Xem [triển khai tên miền, dịch vụ và cấu hình bản build](docs/PUBLIC_API.md).
+
 Để chạy trên trình duyệt, chuẩn bị **Node.js 22 trở lên**, npm và quyền truy cập cơ sở dữ liệu **PostgreSQL Neon** dùng cho phát triển. Chạy các lệnh bên dưới trong PowerShell tại thư mục gốc `LCIT_Manager`.
 
 ### 1. Cài dependencies và cấu hình database
@@ -14,7 +16,9 @@ npm.cmd -v
 npm.cmd install
 ```
 
-API đọc cấu hình từ `apps/api/.env.example`. Tệp này đã chứa `DATABASE_URL` của database Neon dùng cho phát triển, nên không cần tạo `.env.local`. Tệp này chứa mật khẩu database, vì vậy chỉ giữ repo ở chế độ riêng tư và đổi mật khẩu Neon khi có người rời nhóm.
+API đọc cấu hình từ `apps/api/.env.example`, rồi nạp đè `apps/api/.env.local` nếu có. Chuỗi kết nối riêng theo máy đặt trong `.env.local` và không commit. Script migration đọc thêm `.env.migrate.local` để dùng tài khoản sở hữu cấu trúc. Các biến môi trường đã đặt trong terminal/dịch vụ vẫn có ưu tiên cao hơn tệp env.
+
+Máy Admin đã chuyển dữ liệu Neon sang PostgreSQL dùng chung tại `192.168.251.126/lcit_manager` ngày 16/11/2026 và đang dùng cấu hình riêng này. Máy khác cần kết nối LAN/VPN, nhận CA cùng credential từ quản trị và cấu hình đường dẫn CA theo máy mình. Xem [thông tin triển khai và kết quả chuyển dữ liệu](docs/POSTGRES_LAN.md). Cấu hình Neon cũ còn trong tệp mẫu để đối chiếu, không nên dùng song song để tiếp tục ghi dữ liệu sau khi chuyển.
 
 `DATABASE_URL` của API phải dùng endpoint Neon **trực tiếp**, không có hậu tố `-pooler` trong hostname. Tác vụ giám sát giữ session advisory lock qua nhiều transaction ngắn; Neon pooler ở transaction mode không hỗ trợ cách giữ khóa này. Cấu hình mẫu đã dùng endpoint trực tiếp, và API từ chối khởi động nếu phát hiện hostname Neon `-pooler`. Nếu đã đặt `DATABASE_URL` trong môi trường Windows hoặc dịch vụ triển khai, cần đổi biến đó vì nó ưu tiên hơn tệp cấu hình. Tham khảo [Neon connection pooling](https://neon.com/docs/connect/connection-pooling).
 
