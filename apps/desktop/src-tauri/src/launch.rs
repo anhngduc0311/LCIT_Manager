@@ -108,7 +108,8 @@ pub fn build_spec(protocol: &str, host: &str, port: u32) -> Result<LaunchSpec, S
     validate_host(host)?;
     let args = match client {
         // `--` ends option parsing, so the host can never be taken for an ssh option.
-        Client::Ssh => vec!["-p".into(), port.to_string(), "--".into(), host.to_string()],
+        Client::Ssh => vec!["-o".into(), "ConnectTimeout=10".into(), "-o".into(), "ConnectionAttempts=1".into(),
+            "-p".into(), port.to_string(), "--".into(), host.to_string()],
         Client::Rdp => {
             let target = if host.contains(':') { format!("[{host}]:{port}") } else { format!("{host}:{port}") };
             vec![format!("/v:{target}")]
@@ -117,12 +118,12 @@ pub fn build_spec(protocol: &str, host: &str, port: u32) -> Result<LaunchSpec, S
     Ok(LaunchSpec { client, args })
 }
 
-fn system_root() -> PathBuf {
+pub(crate) fn system_root() -> PathBuf {
     std::env::var_os("SystemRoot").map(PathBuf::from).unwrap_or_else(|| PathBuf::from(r"C:\Windows"))
 }
 
 /// `<root>\System32\...`: the clients are Windows components, so they are never looked up through PATH.
-fn client_path(client: Client, root: &std::path::Path) -> PathBuf {
+pub(crate) fn client_path(client: Client, root: &std::path::Path) -> PathBuf {
     let system32 = root.join("System32");
     match client {
         Client::Ssh => system32.join("OpenSSH").join("ssh.exe"),
@@ -243,7 +244,7 @@ pub fn utc_timestamp(epoch_seconds: u64) -> String {
 }
 
 /// One line per attempt in the app log folder. It holds no credentials: the user signs in inside the client.
-fn log_attempt(app: &tauri::AppHandle, request: &LaunchRequest, outcome: &LaunchOutcome) {
+pub(crate) fn log_attempt(app: &tauri::AppHandle, request: &LaunchRequest, outcome: &LaunchOutcome) {
     use std::io::Write;
     let Ok(dir) = app.path().app_log_dir() else { return };
     if std::fs::create_dir_all(&dir).is_err() {
@@ -290,8 +291,9 @@ mod tests {
     fn builds_ssh_arguments_with_option_terminator() {
         let spec = build_spec("ssh", "srv-a.example.test", 2222).unwrap();
         assert_eq!(spec.client, Client::Ssh);
-        assert_eq!(spec.args, ["-p", "2222", "--", "srv-a.example.test"]);
-        assert_eq!(build_spec("ssh", "2001:db8::22", 22).unwrap().args, ["-p", "22", "--", "2001:db8::22"]);
+        assert_eq!(spec.args, ["-o", "ConnectTimeout=10", "-o", "ConnectionAttempts=1", "-p", "2222", "--", "srv-a.example.test"]);
+        assert_eq!(build_spec("ssh", "2001:db8::22", 22).unwrap().args,
+            ["-o", "ConnectTimeout=10", "-o", "ConnectionAttempts=1", "-p", "22", "--", "2001:db8::22"]);
     }
 
     #[test]

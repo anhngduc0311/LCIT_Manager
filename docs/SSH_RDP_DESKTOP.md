@@ -1,5 +1,25 @@
 # Mở SSH/RDP trên desktop — T4.2
 
+## SSH tích hợp trong LCIT Manager (xterm.js)
+
+SSH hiện mở ngay trong giao diện bằng `@xterm/xterm` và `@xterm/addon-fit`. Phần Rust dùng `portable-pty` (ConPTY trên Windows) để chạy OpenSSH hệ thống, truyền dữ liệu qua Tauri Channel. RDP tiếp tục dùng `launch_access` và cửa sổ Remote Desktop. Các mục bên dưới mô tả luồng cửa sổ riêng trước khi tích hợp xterm.js.
+
+Luồng SSH hiện tại:
+
+1. Ở **Máy chủ → Kết nối SSH/RDP**, chọn **Kết nối** tại điểm SSH được cấp quyền.
+2. Nhập **Tên đăng nhập SSH**, bấm **Mở SSH**. Mỗi lần mở mới gọi `POST /access-endpoints/{id}/launch` để kiểm tra quyền và ghi audit. Đích lấy từ phản hồi mới nhất của API.
+3. `ssh_open` kiểm tra đích và tên đăng nhập, chạy OpenSSH với `-tt -l <username>` cùng cổng, host và thời gian chờ đã kiểm tra. Không thông qua shell.
+4. Nhập mật khẩu hoặc trả lời câu hỏi khóa máy chủ ngay trong terminal; mật khẩu không hiển thị. OpenSSH quản lý `known_hosts`, SSH config và khóa như thông thường. Không tự chấp nhận khóa máy chủ.
+5. Terminal hỗ trợ màu ANSI, Ctrl+C, phím mũi tên, dán văn bản và tự đổi kích thước. **Đóng terminal**, rời màn hình hoặc đăng xuất sẽ đóng phiên và dừng tiến trình SSH; đóng cửa sổ chính xuống khay vẫn giữ phiên như các chức năng hiện tại.
+
+`ssh_write`, `ssh_resize`, `ssh_close` chỉ thao tác phiên thuộc cửa sổ đã mở nó. Dữ liệu đầu ra giữ dạng byte để không hỏng UTF-8 khi chia gói. Không ghi mật khẩu, lệnh hay nội dung terminal vào log. `launch.log` ghi metadata khi tạo và kết thúc tiến trình; trạng thái `ExitedEarly` ở luồng nhúng biểu thị tiến trình đã kết thúc dù phiên kéo dài bao lâu, kèm mã thoát. `Started` chỉ có nghĩa tiến trình đang chạy, không khẳng định đăng nhập thành công.
+
+Cần Windows có ConPTY (Windows 10 1809 trở lên) và OpenSSH Client, cùng VPN/đường mạng tới đích. Chế độ trình duyệt vẫn không mở SSH. Mỗi bảng chi tiết mở một terminal; muốn kết nối lại hãy đóng terminal cũ.
+
+Kiểm tra: `npm run typecheck --workspace @lcit/desktop`, `npm run build --workspace @lcit/desktop`, `cargo test` trong `apps/desktop/src-tauri`. Test PTY thật kiểm tra nhập lệnh, thay đổi kích thước, nhận dữ liệu và mã thoát bằng tiến trình cục bộ. Cần thử đăng nhập thực tế với máy SSH nội bộ để xác nhận VPN, thông tin đăng nhập và các chương trình tương tác.
+
+## Luồng cửa sổ riêng trước đây
+
 T4.2 nối API cấp quyền của T4.1 ([ACCESS_API.md](ACCESS_API.md)) với trình khách có sẵn của Windows: `ssh.exe` (OpenSSH) và `mstsc.exe` (Remote Desktop Connection). Desktop không lưu và không nhận mật khẩu. Người dùng đăng nhập trực tiếp vào máy đích trong cửa sổ của trình khách.
 
 ## Luồng
@@ -17,7 +37,7 @@ T4.2 nối API cấp quyền của T4.1 ([ACCESS_API.md](ACCESS_API.md)) với t
 | --- | --- |
 | Trình khách cố định theo giao thức | `ssh` → `%SystemRoot%\System32\OpenSSH\ssh.exe`, `rdp` → `%SystemRoot%\System32\mstsc.exe`. Không tìm qua PATH hoặc thư mục hiện tại |
 | Không qua shell, không nội suy | Gọi `CreateProcessW` trực tiếp. Mỗi đối số là một token đã kiểm tra, đối số cần trích dẫn bị từ chối |
-| Đối số của `ssh` | `-p <cổng> -- <host>`. Dấu `--` ngăn host bị hiểu là tùy chọn |
+| Đối số của `ssh` | `-o ConnectTimeout=10 -o ConnectionAttempts=1 -p <cổng> -- <host>`. Giới hạn chờ kết nối/bắt tay ban đầu 10 giây, thử một lần. Dấu `--` ngăn host bị hiểu là tùy chọn |
 | Đối số của `mstsc` | `/v:host:cổng`, IPv6 viết `/v:[địa chỉ]:cổng` |
 | Kiểm tra đích | Giao thức chỉ `ssh` hoặc `rdp` (chữ thường). Cổng 1–65535. Host là IPv4/IPv6 không kèm cổng, ngoặc hoặc zone, hoặc hostname ASCII (chữ, số, `-`, `_`), không bắt đầu bằng `-`. `authorizationId` phải đúng dạng UUID |
 | Console cho `ssh` | Chạy trong cửa sổ console riêng và không thừa kế handle của ứng dụng |
@@ -30,13 +50,15 @@ Lệnh theo dõi trình khách sau khi mở: `ssh` 4 giây (từ chối kết n�
 
 | Trạng thái | Ý nghĩa | Giao diện báo |
 | --- | --- | --- |
-| `started` | Trình khách còn chạy sau thời gian theo dõi | Đã mở cửa sổ. Không có nghĩa là đăng nhập thành công |
+| `started` | Trình khách còn chạy sau thời gian theo dõi | Với SSH, hiển thị cảnh báo đang chờ kết nối hoặc đăng nhập; không đánh dấu kết nối thành công |
 | `exited_early` | Trình khách thoát sớm, kèm mã thoát (`ssh` mã 255 là không kết nối được) | Nhiều khả năng không kết nối được. Kiểm tra VPN, mạng, địa chỉ, cổng |
 | `client_missing` | Máy không có `ssh.exe` hoặc `mstsc.exe` | Hướng dẫn cài OpenSSH Client |
 | `spawn_failed` | Windows không mở được trình khách | Hiện lý do |
 | `invalid` | Đích không qua kiểm tra, không có gì được mở | Báo Quản trị kiểm tra điểm truy cập |
 
 Lỗi kết nối xảy ra muộn hơn thời gian theo dõi (ví dụ chờ hết hạn mạng) chỉ hiện trong cửa sổ của trình khách.
+
+Khi cửa sổ SSH trống, đối chiếu **host của điểm truy cập** với địa chỉ mong muốn, VPN và cổng. Host có thể khác hostname máy chủ do NAT hoặc jump host, nên ứng dụng không tự sửa cho giống hostname. Nếu xác nhận là gõ nhầm, sửa điểm truy cập rồi cấp lại quyền cho đúng đích; không giữ nguyên quyền gắn với cấu hình cũ. Giới hạn 10 giây chỉ áp dụng kết nối/bắt tay ban đầu, không giới hạn thời gian người dùng nhập mật khẩu hoặc phiên làm việc.
 
 Mỗi lần thử ghi một dòng vào `%LOCALAPPDATA%\vn.lcit.manager\logs\launch.log` (thời điểm ghi là sau khi theo dõi xong, nên chậm hơn nhật ký API vài giây): thời điểm UTC, `authorizationId`, giao thức, đích, trạng thái và mã thoát. Không có thông tin đăng nhập. `authorizationId` khớp `request_id` của nhật ký `access.launch.authorize` trên API. Giao diện hiện 8 ký tự đầu làm mã đối chiếu.
 
