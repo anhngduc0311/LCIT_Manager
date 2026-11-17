@@ -12,7 +12,7 @@ const paths: Record<string, string> = {
  dashboard: 'M3 3h8v10H3z M13 3h8v6h-8z M13 11h8v10h-8z M3 15h8v6H3z',
  reports: 'M14 3H6v18h12V7z M14 3v4h4 M9 13h6 M9 17h6 M9 9h2',
  alerts: 'M6 8a6 6 0 1 1 12 0c0 7 3 8 3 8H3s3-1 3-8 M10.5 20a1.7 1.7 0 0 0 3 0',
- imports: 'M12 3v12 M7 10l5 5 5-5 M4 17v4h16v-4',
+ imports: 'M3 4h18v16H3z M3 9.3h18 M3 14.7h18 M9 4v16 M15 4v16',
  arrow: 'M4 12h16 M14 6l6 6-6 6', shield: 'm12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6z M8 12l3 3 5-6',
 };
 export function Icon({ name, size = 20, style }: { name: string; size?: number; style?: CSSProperties }) {
