@@ -62,7 +62,7 @@ function SignedIn({ workspace, session }: { workspace: ReturnType<typeof useWork
  tool === 'alerts' ? <AlertsView api={api} notifications={notifications} open={open} /> :
  tool === 'imports' ? <ImportsView api={api} /> :
  current.kind === 'health' ? <section className={`panel ${styles.connectionPanel}`}><p className="eyebrow">HỆ THỐNG</p><h1>Kết nối hệ thống</h1><p className="page-description">Kiểm tra kết nối đến dịch vụ và cơ sở dữ liệu.</p><Health /></section> :
- current.id ? <Detail key={`${current.kind}:${current.id}`} kind={current.kind as Kind} id={current.id} api={api} role={role} open={open} back={() => navigate({ kind: current.kind as Kind })} /> :
+ current.id ? <Detail key={`${current.kind}:${current.id}`} kind={current.kind as Kind} id={current.id} api={api} role={role} actorId={session.user.id} open={open} back={() => navigate({ kind: current.kind as Kind })} /> :
  <Catalog key={current.kind} kind={current.kind as Kind} api={api} role={role} actorId={session.user.id} open={open} />}</main>
  <footer className="workspace-footer">LCIT Manager<span>Quản lý hạ tầng. Kết nối thông tin.</span></footer></div></div>;
 }
