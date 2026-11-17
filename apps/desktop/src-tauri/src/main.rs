@@ -1,5 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod launch;
+
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
@@ -17,6 +19,7 @@ fn show_main_window(app: &AppHandle) {
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_notification::init())
+        .invoke_handler(tauri::generate_handler![launch::launch_access])
         .setup(|app| {
             // T3.5: the app stays in the Windows tray so alert notifications keep arriving after the window is closed.
             let open = MenuItem::with_id(app, "open", "Mở LCIT Manager", true, None::<&str>)?;

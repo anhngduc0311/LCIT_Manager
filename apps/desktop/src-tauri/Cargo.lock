@@ -1915,9 +1915,11 @@ dependencies = [
 name = "lcit-manager-desktop"
 version = "0.1.0"
 dependencies = [
+ "serde",
  "tauri",
  "tauri-build",
  "tauri-plugin-notification",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
