@@ -5,8 +5,9 @@
  *   GET    /users/{id}/access-endpoints                -> Page<AccessGrant>     (administrator)
  *   PUT    /users/{id}/access-endpoints/{endpointId}   -> 204                   (grant the current saved configuration)
  *   DELETE /users/{id}/access-endpoints/{endpointId}   -> 204
- * The launch response is the only source of protocol, host and port for a connection. Opening the client is the
- * SSH uses `ssh_open` with a native PTY and xterm.js; RDP uses `launch_access`.
+ * The launch response is the only source of protocol, host and port for a connection.
+ * SSH uses `ssh_open` with a native PTY and xterm.js; embedded RDP uses `rdp_open`.
+ * `launch_access` remains available for the legacy external Windows clients.
  */
 export type AccessProtocol = 'ssh' | 'rdp';
 

@@ -2,9 +2,29 @@
 
 Chức năng truyền tệp qua `ssh2-sftp-client`: xem [SFTP.md](SFTP.md).
 
+## RDP hiển thị trong ứng dụng Windows
+
+Khi thêm hoặc đổi giao thức của điểm truy cập, chọn **RDP** để tự điền cổng chuẩn **3389**; bình thường không cần nhập cổng. Chỉ bật **Dùng cổng khác (nâng cao)** nếu máy đích được cấu hình cổng riêng. SSH tự dùng cổng **22**. Phần kết nối RDP ẩn số cổng khi dùng 3389.
+
+Nếu điểm RDP cũ lưu nhầm cổng 22, màn hình kết nối hiện cảnh báo. Quản trị chọn **Dùng cổng RDP mặc định** để cập nhật cấu hình lưu qua API và cấp lại quyền cho chính mình. Màn hình đóng để tải lại dữ liệu; mở RDP lại để kết nối. Các tài khoản khác cần được cấp lại quyền theo cấu hình mới. Đích không bị tự đổi trong lúc mở kết nối, nên kiểm tra quyền và audit vẫn gắn với đúng host/cổng được lưu.
+
+Tại điểm truy cập RDP được cấp quyền, chọn **Mở màn hình RDP**. Giao diện mở toàn bộ vùng làm việc của LCIT Manager, có tài khoản Windows, miền tùy chọn và mật khẩu (có thể để trống để Windows hỏi khi cần). Chọn **Kết nối RDP** để kiểm tra quyền qua API rồi nhúng màn hình máy đích ngay trong cửa sổ ứng dụng. Chuột và bàn phím thao tác trực tiếp trong màn hình này. **Ngắt kết nối và đóng** hủy phiên; kết nối lại luôn cần một lần cấp quyền mới.
+
+Phần Rust (`src-tauri/src/rdp.rs`) dùng Remote Desktop ActiveX có sẵn trên Windows, chứa trong cửa sổ con ATL. Các đối tượng COM chỉ chạy trên luồng giao diện. Host/cổng lấy từ phản hồi mới của API và được kiểm tra lại. Chỉ cửa sổ đã mở phiên mới được đổi kích thước, đọc trạng thái hoặc đóng phiên. Không tải mã ActiveX từ mạng và không chạy thành phần này trong DOM của trình duyệt.
+
+Hỗ trợ NLA/CredSSP và co giãn màn hình qua SmartSizing. Windows hiển thị bước xác minh chứng chỉ khi cần, không tự bỏ qua xác minh. Mật khẩu không lưu vào cơ sở dữ liệu, cấu hình hay log. Clipboard, ổ đĩa và máy in không được chuyển tiếp. Vùng hiển thị tự đổi kích thước theo cửa sổ và tỷ lệ DPI; phiên được hủy khi đóng giao diện RDP, chuyển màn hình hoặc đăng xuất.
+
+Vùng native RDP được tách khỏi vùng vẽ của các cửa sổ web cùng cha bằng Windows window regions; đóng/ẩn RDP khôi phục vùng web ban đầu. Không dựa vào `document.hidden` vì WebView2 có thể coi mình bị che bởi chính màn hình RDP. Kiểm thử hiển thị kiểm tra cả kích thước cửa sổ con, thứ tự lớp, lỗ cắt vùng web và khôi phục giao diện khi ẩn/đóng.
+
+Trạng thái hiển thị lấy từ thành phần RDP thực: đang kết nối, đã kết nối hoặc phiên đã kết thúc. `launch.log` ghi lúc tạo phiên kèm mã cấp quyền, không khẳng định đã đăng nhập thành công. Đóng màn hình không đăng xuất tài khoản Windows trên máy đích; phiên làm việc phía máy đích tuân theo chính sách Remote Desktop của máy đó.
+
+Chức năng này cần ứng dụng Tauri trên Windows 10 trở lên, có Remote Desktop ActiveX và ATL trong thư mục hệ thống. Máy người dùng cần VPN/đường mạng đến máy đích. Chạy trình duyệt không nhúng được RDP; sau khi cập nhật phần Rust cần khởi động lại hoặc build lại ứng dụng desktop.
+
+Kiểm tra: `cargo test` kiểm tra nạp thành phần RDP thật, cấu hình bảo mật, cổng tùy chỉnh, kích thước, dữ liệu đăng nhập, cách ly cửa sổ và dọn cửa sổ con khi đóng phiên. Máy chủ TCP cục bộ xác nhận gói kết nối RDP thực sự được gửi đến đúng cổng đã cấp. Cần kiểm tra đăng nhập thực tế với máy Windows đích để xác nhận tài khoản, NLA, chứng chỉ và chính sách máy đích.
+
 ## SSH tích hợp trong LCIT Manager (xterm.js)
 
-SSH hiện mở ngay trong giao diện bằng `@xterm/xterm` và `@xterm/addon-fit`. Phần Rust dùng `portable-pty` (ConPTY trên Windows) để chạy OpenSSH hệ thống, truyền dữ liệu qua Tauri Channel. RDP tiếp tục dùng `launch_access` và cửa sổ Remote Desktop. Các mục bên dưới mô tả luồng cửa sổ riêng trước khi tích hợp xterm.js.
+SSH hiện mở ngay trong giao diện bằng `@xterm/xterm` và `@xterm/addon-fit`. Phần Rust dùng `portable-pty` (ConPTY trên Windows) để chạy OpenSSH hệ thống, truyền dữ liệu qua Tauri Channel. RDP dùng giao diện nhúng mô tả ở trên. Các mục luồng cửa sổ riêng bên dưới là mô tả lịch sử trước khi tích hợp giao diện nhúng.
 
 Luồng SSH hiện tại:
 

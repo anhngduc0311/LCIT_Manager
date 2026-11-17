@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Page, RequestApi } from '../models/api';
 import {
-  AccessEndpoint, AccessGrant, AccessLaunchResponse, describeOutcome, LaunchOutcome, LaunchReport,
+  AccessEndpoint, AccessGrant, LaunchReport,
 } from '../models/access';
 import { inTauri } from '../models/tauri';
 import { errorText, useRemote } from './use-remote';
@@ -13,13 +13,13 @@ export function useEndpoints(api: RequestApi, serverId: string) {
 }
 
 /**
- * One click = one authorization. The API checks the grant and audits the decision; only its answer is used to
- * open the client, never a value typed or cached in the UI. Outside Tauri nothing is requested, so the audit
- * log never records an authorization for a connection that cannot open.
+ * Open the SSH/RDP login UI. Its Connect action obtains a fresh API authorization before opening a session.
+ * Outside Tauri no authorization is requested because native sessions cannot be opened.
  */
 export function useLaunch(api: RequestApi) {
   const [busy, setBusy] = useState('');
   const [terminal, setTerminal] = useState<AccessEndpoint>();
+  const [rdp, setRdp] = useState<AccessEndpoint>();
   const [report, setReport] = useState<LaunchReport & { endpointId: string }>();
 
   async function launch(endpoint: AccessEndpoint) {
@@ -31,12 +31,7 @@ export function useLaunch(api: RequestApi) {
         return;
       }
       if (endpoint.protocol === 'ssh') { setTerminal(endpoint); return; }
-      const grant = await api<AccessLaunchResponse>(`/access-endpoints/${endpoint.id}/launch`, { method: 'POST' });
-      const { invoke } = await import('@tauri-apps/api/core');
-      const outcome = await invoke<LaunchOutcome>('launch_access', {
-        request: { authorizationId: grant.authorizationId, protocol: grant.protocol, host: grant.host, port: grant.port },
-      });
-      setReport({ endpointId: endpoint.id, ...describeOutcome(outcome, grant), reference: grant.authorizationId.slice(0, 8) });
+      setRdp(endpoint);
     } catch (failure) {
       setReport({ endpointId: endpoint.id, tone: 'error', text: errorText(failure) });
     } finally {
@@ -44,7 +39,7 @@ export function useLaunch(api: RequestApi) {
     }
   }
 
-  return { launch, busy, report, terminal, closeTerminal: () => setTerminal(undefined) };
+  return { launch, busy, report, terminal, closeTerminal: () => setTerminal(undefined), rdp, closeRdp: () => setRdp(undefined) };
 }
 
 export function useGrants(api: RequestApi, userId: string) {

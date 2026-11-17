@@ -36,10 +36,12 @@ export function Picker({ api, kind, value, change, required, initialLabel = '' }
   </span>;
 }
 
-function EditForm({ api, fields, item, save, cancel, title }: {
-  api: RequestApi; fields: Field[]; item?: RecordItem; save: (body: Record<string, unknown>) => Promise<void>; cancel: () => void; title?: string;
+function EditForm({ api, fields, item, save, cancel, title, accessEndpoint = false }: {
+  api: RequestApi; fields: Field[]; item?: RecordItem; save: (body: Record<string, unknown>) => Promise<void>; cancel: () => void; title?: string; accessEndpoint?: boolean;
 }) {
   const [values, setValues] = useState(() => Object.fromEntries(fields.map(({ key }) => [key, String(item?.[key] ?? '')])));
+  const defaultPort = values.protocol === 'rdp' ? '3389' : '22';
+  const [customPort, setCustomPort] = useState(() => Boolean(accessEndpoint && item?.port && Number(item.port) !== (item.protocol === 'rdp' ? 3389 : 22)));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   async function submit(event: FormEvent) {
@@ -57,8 +59,14 @@ function EditForm({ api, fields, item, save, cancel, title }: {
   }
   return <form className="editor" onSubmit={submit}>{title && <h2 className={accountStyles.formTitle}>{title}</h2>}<div className="form-grid">
     {fields.map(({ key, label, type, options, required, source }) => {
+      if (accessEndpoint && key === 'port' && !customPort) return null;
       const value = values[key] ?? '';
-      const change = (newValue: string) => setValues((previous) => ({ ...previous, [key]: newValue }));
+      const change = (newValue: string) => {
+        if (accessEndpoint && key === 'protocol') {
+          setCustomPort(false);
+          setValues((previous) => ({ ...previous, protocol: newValue, port: newValue === 'rdp' ? '3389' : '22' }));
+        } else setValues((previous) => ({ ...previous, [key]: newValue }));
+      };
       const needed = required || (type === 'password' && !item);
       return <label key={key}>{label}{source ? <Picker api={api} kind={source} value={value} change={change} required={needed}
         initialLabel={key === 'ownerId' ? String(item?.ownerDisplayName ?? '') : undefined} /> :
@@ -68,7 +76,13 @@ function EditForm({ api, fields, item, save, cancel, title }: {
         <input type={type ?? 'text'} value={value} required={needed} min={type === 'number' ? 1 : undefined} max={type === 'number' ? 65535 : undefined}
           minLength={type === 'password' ? 12 : undefined} autoComplete={type === 'password' ? 'new-password' : undefined} onChange={(event) => change(event.target.value)} />}</label>;
     })}
-  </div>{error && <p className="error" role="alert">{error}</p>}
+  </div>{accessEndpoint && values.protocol && <div style={{ marginBlock: '.75rem' }}>
+    <p className="muted">{values.protocol === 'rdp' ? 'RDP tự dùng cổng mặc định 3389.' : 'SSH tự dùng cổng mặc định 22.'}</p>
+    <label style={{ display: 'flex', alignItems: 'center', gap: '.5rem' }}><input style={{ width: 'auto' }} type="checkbox" checked={customPort} onChange={(event) => {
+      setCustomPort(event.target.checked);
+      if (!event.target.checked) setValues((previous) => ({ ...previous, port: defaultPort }));
+    }} /> Dùng cổng khác (nâng cao)</label>
+  </div>}{error && <p className="error" role="alert">{error}</p>}
   <div className="actions"><button disabled={busy}>{busy ? 'Đang lưu…' : 'Lưu'}</button><button type="button" className="secondary" disabled={busy} onClick={cancel}>Hủy</button></div></form>;
 }
 
@@ -267,7 +281,7 @@ export function Detail({ kind, id, api, role, actorId, open, back }: { kind: Kin
       {kind === 'applications' && <Attachments api={api} applicationId={item.id} />}
       {kind === 'users' && admin && item.role !== 'admin' && <Permissions api={api} userId={item.id} />}
       {kind === 'users' && admin && item.role !== 'leader' && <AccessGrants api={api} userId={item.id} />}
-      {kind === 'servers' && role !== 'leader' && <AccessPanel api={api} serverId={item.id} actorId={actorId} admin={admin} />}
+      {kind === 'servers' && role !== 'leader' && <AccessPanel api={api} serverId={item.id} actorId={actorId} admin={admin} changed={refresh} />}
       {childGroups[kind]?.filter((group) => admin || ['addresses', 'dnsRecords'].includes(group.key)).map((group) => {
         const records = (item[group.key] ?? []) as RecordItem[];
         const adding = editing === group.path;
@@ -279,7 +293,7 @@ export function Detail({ kind, id, api, role, actorId, open, back }: { kind: Kin
             options?.find(([value]) => value === child[key])?.[1] ?? child[key]).filter((value) => value != null && value !== '').map(String).join(' · ')}</span>
             {admin && <div className="actions"><button className="secondary" onClick={() => setEditing(`${group.path}/${child.id}`)}>Sửa</button>
               <button className="secondary" onClick={() => { if (window.confirm('Xóa mục này?')) void mutate(`${path}/${group.path}/${child.id}`, 'DELETE', { version: item.version }); }}>Xóa</button></div>}</li>)}</ul>
-          {(adding || edited) && <EditForm key={editing} api={api} item={edited} fields={group.fields} cancel={() => setEditing('')} save={(body) => saveChild(group.path, edited?.id, body, item.version)} />}</div>;
+          {(adding || edited) && <EditForm key={editing} api={api} item={edited} fields={group.fields} accessEndpoint={group.path === 'access-endpoints'} cancel={() => setEditing('')} save={(body) => saveChild(group.path, edited?.id, body, item.version)} />}</div>;
       })}
     </>}
   </section>;

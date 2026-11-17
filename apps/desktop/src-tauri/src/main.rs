@@ -2,6 +2,7 @@
 
 mod launch;
 mod ssh_terminal;
+mod rdp;
 
 use tauri::{
     menu::{Menu, MenuItem},
@@ -21,7 +22,8 @@ fn main() {
     tauri::Builder::default()
         .manage(ssh_terminal::Sessions::default())
         .plugin(tauri_plugin_notification::init())
-        .invoke_handler(tauri::generate_handler![launch::launch_access, ssh_terminal::ssh_open, ssh_terminal::ssh_write, ssh_terminal::ssh_resize, ssh_terminal::ssh_close])
+        .invoke_handler(tauri::generate_handler![launch::launch_access, ssh_terminal::ssh_open, ssh_terminal::ssh_write, ssh_terminal::ssh_resize, ssh_terminal::ssh_close,
+            rdp::rdp_open, rdp::rdp_resize, rdp::rdp_status, rdp::rdp_close])
         .setup(|app| {
             // T3.5: the app stays in the Windows tray so alert notifications keep arriving after the window is closed.
             let open = MenuItem::with_id(app, "open", "Mở LCIT Manager", true, None::<&str>)?;

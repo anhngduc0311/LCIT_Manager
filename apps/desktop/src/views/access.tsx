@@ -7,19 +7,32 @@ import { Picker } from './catalog';
 import styles from './reports.module.css';
 import { SshTerminal } from './ssh-terminal';
 import { SftpBrowser } from './sftp-browser';
+import { RdpDesktop } from './rdp-desktop';
 
 const toneBadge = { ok: styles.badgeNotice, warn: styles.badgeWarning, error: styles.badgeCritical } as const;
 const toneIcon = { ok: '✓', warn: '◔', error: '⚠' } as const;
 const dateTime = new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short' });
 
 /** "Kết nối SSH/RDP" on a server's detail screen: administrators and specialists, never leaders. */
-export function AccessPanel({ api, serverId, actorId, admin }: { api: RequestApi; serverId: string; actorId: string; admin: boolean }) {
+export function AccessPanel({ api, serverId, actorId, admin, changed }: { api: RequestApi; serverId: string; actorId: string; admin: boolean; changed?: () => void }) {
   const { result, reload } = useEndpoints(api, serverId);
-  const { launch, busy, report, terminal, closeTerminal } = useLaunch(api);
+  const { launch, busy, report, terminal, closeTerminal, rdp, closeRdp } = useLaunch(api);
   const [granting, setGranting] = useState('');
   const [error, setError] = useState('');
   const [sftp, setSftp] = useState<AccessEndpoint>();
   const items = result?.data?.items ?? [];
+
+  async function useDefaultRdpPort(endpoint: AccessEndpoint) {
+    const server = await api<RecordItem>(`/servers/${serverId}`);
+    const current = (server.accessEndpoints as AccessEndpoint[] | undefined)?.find((item) => item.id === endpoint.id);
+    if (!current || current.protocol !== 'rdp' || current.host !== endpoint.host || current.port !== 22) {
+      throw new Error('Điểm truy cập đã thay đổi. Hãy đóng RDP và tải lại trước khi sửa.');
+    }
+    await api(`/servers/${serverId}/access-endpoints/${endpoint.id}`, { method: 'PATCH', body: { version: server.version, port: 3389 } });
+    // The saved destination changed, so explicitly grant the corrected configuration to this administrator.
+    try { await api(`/users/${actorId}/access-endpoints/${endpoint.id}`, { method: 'PUT' }); }
+    finally { closeRdp(); reload(); changed?.(); }
+  }
 
   async function grantSelf(endpoint: AccessEndpoint) {
     if (granting) return;
@@ -31,7 +44,7 @@ export function AccessPanel({ api, serverId, actorId, admin }: { api: RequestApi
 
   return <div className="subpanel" aria-busy={Boolean(busy)}><div className="section-title"><h3>Kết nối SSH/RDP</h3>
     <button className="secondary" disabled={Boolean(busy)} onClick={reload}>Tải lại</button></div>
-    <p className="muted">SSH mở terminal ngay trong ứng dụng; RDP mở Remote Desktop của Windows. Hệ thống kiểm tra quyền và ghi nhật ký trước mỗi kết nối. Bạn đăng nhập trực tiếp vào máy đích.
+    <p className="muted">SSH và RDP hiển thị ngay trong ứng dụng. Hệ thống kiểm tra quyền và ghi nhật ký trước mỗi kết nối. Bạn đăng nhập trực tiếp vào máy đích.
       Cần có VPN hoặc đường mạng tới máy đích.</p>
     {!result && <p role="status">Đang tải điểm truy cập…</p>}
     {result?.error && <p className="error" role="alert">{result.error}</p>}
@@ -47,10 +60,11 @@ export function AccessPanel({ api, serverId, actorId, admin }: { api: RequestApi
           {endpoint.protocol === 'ssh' && <button className="secondary" disabled={!endpoint.canLaunch || Boolean(sftp)} onClick={() => setSftp(endpoint)}>Truyền tệp SFTP</button>}
           {admin && !endpoint.canLaunch && <button className="secondary" disabled={Boolean(granting)} onClick={() => void grantSelf(endpoint)}>
             {granting === endpoint.id ? 'Đang cấp…' : 'Cấp quyền cho tôi'}</button>}
-          <button disabled={!endpoint.canLaunch || Boolean(busy) || Boolean(terminal)} onClick={() => void launch(endpoint)}>{busy === endpoint.id ? 'Đang mở…' : 'Kết nối'}</button>
+          <button disabled={!endpoint.canLaunch || Boolean(busy) || (endpoint.protocol === 'ssh' ? Boolean(terminal) : Boolean(rdp))} onClick={() => void launch(endpoint)}>{busy === endpoint.id ? 'Đang mở…' : endpoint.protocol === 'rdp' ? 'Mở màn hình RDP' : 'Kết nối'}</button>
         </div></li>)}</ul>)}
     {terminal && <SshTerminal key={`ssh:${terminal.id}`} api={api} endpoint={terminal} close={closeTerminal} />}
     {sftp && <SftpBrowser key={`sftp:${sftp.id}`} api={api} endpoint={sftp} close={() => setSftp(undefined)} />}
+    {rdp && <RdpDesktop key={`rdp:${rdp.id}`} api={api} endpoint={rdp} close={closeRdp} fixDefaultPort={admin ? () => useDefaultRdpPort(rdp) : undefined} />}
   </div>;
 }
 
