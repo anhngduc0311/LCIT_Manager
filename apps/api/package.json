@@ -5,7 +5,10 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit",
-    "test": "npm run build && node --test --test-concurrency=1 test/phase1.test.cjs test/phase2-attachments.test.cjs test/phase2-imports.test.cjs test/phase3-monitoring.test.cjs test/phase3-expiry.test.cjs test/phase3-network.test.cjs test/phase3-notifications.test.cjs test/phase3-reports.test.cjs test/phase4-access.test.cjs",
+    "test:t43": "npm run build && node scripts/test-system.cjs",
+    "recovery": "node scripts/recovery.cjs",
+    "test:t44": "npm run build && node --test --test-concurrency=1 test/phase4-operations.test.cjs",
+    "test": "npm run build && node --test --test-concurrency=1 test/phase1.test.cjs test/phase2-attachments.test.cjs test/phase2-imports.test.cjs test/phase3-monitoring.test.cjs test/phase3-expiry.test.cjs test/phase3-network.test.cjs test/phase3-notifications.test.cjs test/phase3-reports.test.cjs test/phase4-access.test.cjs test/phase4-system.test.cjs test/phase4-performance.test.cjs",
     "dev": "npm run build && npm start",
     "start": "node --env-file-if-exists=.env.example --env-file-if-exists=.env.local dist/main.js",
     "db:migrate": "npm run build && node --env-file-if-exists=.env.example --env-file-if-exists=.env.local --env-file-if-exists=.env.migrate.local dist/migrate.js",

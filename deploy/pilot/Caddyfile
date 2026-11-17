@@ -1,0 +1,26 @@
+# Supply a DNS name/IP covered by the certificate and an existing certificate/key.
+{$LCIT_API_SITE} {
+	tls {$LCIT_TLS_CERT} {$LCIT_TLS_KEY}
+	header {
+		X-Content-Type-Options nosniff
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+	request_body {
+		max_size 21MB
+	}
+	@docs path /docs /docs/* /docs-json
+	respond @docs 404
+	reverse_proxy 127.0.0.1:{$LCIT_API_PORT:4000}
+	log {
+		output stdout
+		format filter {
+			wrap json
+			fields {
+				request>uri delete
+				request>headers delete
+				resp_headers delete
+			}
+		}
+	}
+}

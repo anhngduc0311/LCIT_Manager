@@ -39,15 +39,21 @@ test('phase 1 migration, catalog permissions, sessions and audit', {
 }, async (context) => {
   const root = path.resolve(__dirname, '..');
   const db = new Pool({ connectionString: databaseUrl, enableChannelBinding: true, connectionTimeoutMillis: 5000 });
-  context.after(() => db.end());
+  let child, ownsSchema = false;
+  context.after(async () => {
+    // Stop the API before dropping tables it may still be using after an HTTP timeout.
+    if (child?.pid && child.exitCode === null && child.signalCode === null) {
+      const exited = once(child, 'exit');
+      child.kill();
+      await exited;
+    }
+    try {
+      if (ownsSchema) await db.query('DROP SCHEMA IF EXISTS lcit CASCADE');
+    } finally { await db.end(); }
+  });
   const existing = await db.query("SELECT to_regnamespace('lcit') AS schema");
   assert.equal(existing.rows[0].schema, null, 'Use a disposable database without an lcit schema.');
-  // Registered only after the check above, so the test never drops a schema it did not create.
-  // Lets the next test file reuse the same disposable database.
-  context.after(async () => {
-    const cleanup = new Pool({ connectionString: databaseUrl, enableChannelBinding: true, connectionTimeoutMillis: 5000 });
-    try { await cleanup.query('DROP SCHEMA IF EXISTS lcit CASCADE'); } finally { await cleanup.end(); }
-  });
+  ownsSchema = true;
 
   const password = randomBytes(24).toString('hex');
   const env = { ...process.env, DATABASE_URL: databaseUrl, LCIT_ADMIN_USERNAME: 'test-admin', LCIT_ADMIN_PASSWORD: password };
@@ -76,10 +82,9 @@ test('phase 1 migration, catalog permissions, sessions and audit', {
   await once(socket, 'listening');
   const { port } = socket.address();
   await new Promise((resolve) => socket.close(resolve));
-  const child = spawn(process.execPath, ['dist/main.js'], {
+  child = spawn(process.execPath, ['dist/main.js'], {
     cwd: root, env: { ...env, API_HOST: '127.0.0.1', API_PORT: String(port) }, stdio: 'ignore',
   });
-  context.after(() => { child.kill(); });
   const base = `http://127.0.0.1:${port}`;
   for (let i = 0; i < 40; i += 1) {
     try {
@@ -94,9 +99,15 @@ test('phase 1 migration, catalog permissions, sessions and audit', {
     const headers = {};
     if (token) headers.authorization = `Bearer ${token}`;
     if (body) headers['content-type'] = 'application/json';
-    const response = await fetch(`${base}/api/v1${route}`, {
-      method, headers, body: body && JSON.stringify(body), signal: AbortSignal.timeout(8000),
-    });
+    let response;
+    try {
+      response = await fetch(`${base}/api/v1${route}`, {
+        method, headers, body: body && JSON.stringify(body), signal: AbortSignal.timeout(8000),
+      });
+    } catch (error) {
+      // Include only the method/path, never the request body, password or bearer token.
+      throw new Error(`${method} ${route} failed (${error.name})`, { cause: error });
+    }
     const payload = response.status === 204 ? undefined : await response.json();
     assert.equal(response.status, status, `${method} ${route} returned ${payload?.code ?? response.status}`);
     if (status >= 400) assert.equal(payload.requestId, response.headers.get('x-request-id'));

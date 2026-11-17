@@ -4,6 +4,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ApiExceptionFilter } from './shared/api-contract';
 import { AppModule } from './app.module';
 import { DirectDatabaseConnectionRequired, requireDirectDatabaseUrl } from './models/database-config';
+import { httpLogging } from './shared/http-logging';
 
 async function bootstrap() {
   if (process.env.DATABASE_URL) requireDirectDatabaseUrl(process.env.DATABASE_URL);
@@ -15,6 +16,7 @@ async function bootstrap() {
   ).split(',').map((origin) => origin.trim()).filter(Boolean);
 
   const app = await NestFactory.create(AppModule);
+  app.use(httpLogging());
   app.enableShutdownHooks();
   app.useGlobalFilters(new ApiExceptionFilter());
   app.enableCors({ origin: origins, exposedHeaders: ['X-Request-Id', 'Content-Disposition'] });
@@ -23,7 +25,7 @@ async function bootstrap() {
     .setVersion('0.1.0')
     .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'opaque' })
     .build();
-  SwaggerModule.setup('docs', app, () => SwaggerModule.createDocument(app, config));
+  if (process.env.API_DOCS_ENABLED !== 'off') SwaggerModule.setup('docs', app, () => SwaggerModule.createDocument(app, config));
   await app.listen(port, host);
 }
 

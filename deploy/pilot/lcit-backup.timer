@@ -1,0 +1,10 @@
+[Unit]
+Description=Daily LCIT backup at 02:15 Vietnam time
+
+[Timer]
+OnCalendar=*-*-* 02:15:00 Asia/Ho_Chi_Minh
+Persistent=true
+Unit=lcit-backup.service
+
+[Install]
+WantedBy=timers.target

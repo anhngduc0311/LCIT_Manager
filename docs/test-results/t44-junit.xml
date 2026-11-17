@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<testsuites>
+	<testcase name="T4.4: HTTP logs correlate requests without bodies, headers, query strings or unmatched URLs" time="0.005245" classname="test" file="D:\LCIT_Manager\apps\api\test\phase4-operations.test.cjs"/>
+	<testcase name="T4.4: paired backup → empty database restore → revoke old sessions → download identical attachment" time="7.724345" classname="test" file="D:\LCIT_Manager\apps\api\test\phase4-operations.test.cjs"/>
+	<!-- {"sourcePostgres":"18.6","tables":33,"migrations":9,"attachments":1,"attachmentSha256":"9b0acb3f78bc4b227d0dc81bf065b2ab7b194af6fb282e13dbf3dfdce428c786","sessionsRevoked":true,"corruptionRejected":true,"occupiedDatabaseRejected":true,"downloadedViaRestoredApi":true,"tls":"verified_ca_https_proxy"} -->
+	<!-- tests 2 -->
+	<!-- suites 0 -->
+	<!-- pass 2 -->
+	<!-- fail 0 -->
+	<!-- cancelled 0 -->
+	<!-- skipped 0 -->
+	<!-- todo 0 -->
+	<!-- duration_ms 7907.4092 -->
+</testsuites>
