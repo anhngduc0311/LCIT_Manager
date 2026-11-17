@@ -7,6 +7,8 @@
   "scripts": {
     "build": "npm run build --workspaces",
     "typecheck": "npm run typecheck --workspaces",
+    "test:t43": "npm run test:t43 --workspace @lcit/api",
+    "test:t44": "npm run test:t44 --workspace @lcit/api",
     "dev:api": "npm run dev --workspace @lcit/api",
     "dev:desktop": "npm run dev --workspace @lcit/desktop",
     "desktop:dev": "npm run tauri --workspace @lcit/desktop -- dev",

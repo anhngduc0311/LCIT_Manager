@@ -1,0 +1,145 @@
+{
+  "startedAt": "2026-11-17T03:56:41.226Z",
+  "revision": "9076705e50215e29ee4218ed7b01d05caeb4b6e0",
+  "environment": {
+    "os": "Windows_NT 10.0.19045",
+    "architecture": "x64",
+    "cpu": "Intel(R) Xeon(R) CPU E5-2673 v3 @ 2.40GHz",
+    "logicalCpus": 48,
+    "memoryGiB": 63.88,
+    "node": "v26.13.0",
+    "postgres": [
+      {
+        "name": "effective_cache_size",
+        "setting": "524288",
+        "unit": "8kB"
+      },
+      {
+        "name": "jit",
+        "setting": "on",
+        "unit": null
+      },
+      {
+        "name": "max_connections",
+        "setting": "100",
+        "unit": null
+      },
+      {
+        "name": "server_version",
+        "setting": "18.6",
+        "unit": null
+      },
+      {
+        "name": "shared_buffers",
+        "setting": "16384",
+        "unit": "8kB"
+      },
+      {
+        "name": "work_mem",
+        "setting": "4096",
+        "unit": "kB"
+      }
+    ],
+    "topology": "API and PostgreSQL on the same Windows host, HTTP loopback, no TLS",
+    "apiPoolMax": 5
+  },
+  "workload": {
+    "applications": 10000,
+    "servers": 20000,
+    "domains": 10000,
+    "concurrentUsers": 20,
+    "roles": {
+      "admin": 7,
+      "leader": 7,
+      "specialist": 6
+    },
+    "warmupRequests": 140,
+    "measuredRequests": 700,
+    "pageSize": 25,
+    "model": "closed-loop, one in-flight request per user, zero think time"
+  },
+  "elapsedMs": 3251.32,
+  "requestsPerSecond": 215.3,
+  "total": {
+    "requests": 700,
+    "errors": 0,
+    "p50Ms": 90.97,
+    "p95Ms": 113.5,
+    "maxMs": 130.04
+  },
+  "byQuery": {
+    "ip": {
+      "requests": 100,
+      "errors": 0,
+      "p50Ms": 74.68,
+      "p95Ms": 88.24,
+      "maxMs": 93.57
+    },
+    "hostname": {
+      "requests": 100,
+      "errors": 0,
+      "p50Ms": 88.52,
+      "p95Ms": 104.24,
+      "maxMs": 108.71
+    },
+    "domain": {
+      "requests": 100,
+      "errors": 0,
+      "p50Ms": 88.7,
+      "p95Ms": 99.89,
+      "maxMs": 102.14
+    },
+    "application": {
+      "requests": 100,
+      "errors": 0,
+      "p50Ms": 106.61,
+      "p95Ms": 118.81,
+      "maxMs": 130.04
+    },
+    "organization": {
+      "requests": 100,
+      "errors": 0,
+      "p50Ms": 97.04,
+      "p95Ms": 111.62,
+      "maxMs": 116.63
+    },
+    "no-match": {
+      "requests": 100,
+      "errors": 0,
+      "p50Ms": 84.34,
+      "p95Ms": 95.71,
+      "maxMs": 100.44
+    },
+    "pagination": {
+      "requests": 100,
+      "errors": 0,
+      "p50Ms": 106.29,
+      "p95Ms": 118.43,
+      "maxMs": 122.46
+    }
+  },
+  "byRole": {
+    "admin": {
+      "requests": 245,
+      "errors": 0,
+      "p50Ms": 91.53,
+      "p95Ms": 115.98,
+      "maxMs": 122.46
+    },
+    "leader": {
+      "requests": 245,
+      "errors": 0,
+      "p50Ms": 88.91,
+      "p95Ms": 111.1,
+      "maxMs": 118.82
+    },
+    "specialist": {
+      "requests": 210,
+      "errors": 0,
+      "p50Ms": 93.85,
+      "p95Ms": 114.53,
+      "maxMs": 130.04
+    }
+  },
+  "passed": true
+}

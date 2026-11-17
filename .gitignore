@@ -11,3 +11,7 @@ out/
 apps/desktop/src-tauri/target/
 apps/desktop/src-tauri/gen/
 apps/api/storage/
+/.t43-tools/
+/test-results/
+/.t44-tools/
+/backups/

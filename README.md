@@ -1,12 +1,12 @@
 # LCIT Manager
 
-Nền tảng phát triển cho ứng dụng quản lý hạ tầng. Desktop dùng Next.js xuất tĩnh và Tauri v2. API dùng NestJS và kết nối trực tiếp tới PostgreSQL Neon.
+Nền tảng phát triển cho ứng dụng quản lý hạ tầng. Desktop dùng Next.js xuất tĩnh và Tauri v2. API dùng NestJS và kết nối PostgreSQL theo cấu hình riêng của môi trường.
 
 ## Chạy lần đầu sau khi clone trên Windows
 
 
 
-Để chạy trên trình duyệt, chuẩn bị **Node.js 22 trở lên**, npm và quyền truy cập cơ sở dữ liệu **PostgreSQL Neon** dùng cho phát triển. Chạy các lệnh bên dưới trong PowerShell tại thư mục gốc `LCIT_Manager`.
+Để chạy trên trình duyệt, chuẩn bị **Node.js 22 trở lên**, npm và quyền truy cập PostgreSQL dùng cho phát triển. Chạy các lệnh bên dưới trong PowerShell tại thư mục gốc `LCIT_Manager`.
 
 ### 1. Cài dependencies và cấu hình database
 
@@ -18,7 +18,7 @@ npm.cmd install
 
 API đọc cấu hình từ `apps/api/.env.example`, rồi nạp đè `apps/api/.env.local` nếu có. Chuỗi kết nối riêng theo máy đặt trong `.env.local` và không commit. Script migration đọc thêm `.env.migrate.local` để dùng tài khoản sở hữu cấu trúc. Các biến môi trường đã đặt trong terminal/dịch vụ vẫn có ưu tiên cao hơn tệp env.
 
-Máy Admin đã chuyển dữ liệu Neon sang PostgreSQL dùng chung tại `192.168.251.126/lcit_manager` ngày 16/11/2026 và đang dùng cấu hình riêng này. Máy khác cần kết nối LAN/VPN, nhận CA cùng credential từ quản trị và cấu hình đường dẫn CA theo máy mình. Xem [thông tin triển khai và kết quả chuyển dữ liệu](docs/POSTGRES_LAN.md). Cấu hình Neon cũ còn trong tệp mẫu để đối chiếu, không nên dùng song song để tiếp tục ghi dữ liệu sau khi chuyển.
+Máy Admin đã chuyển dữ liệu Neon sang PostgreSQL dùng chung tại `192.168.251.126/lcit_manager` ngày 16/11/2026 và đang dùng cấu hình riêng này. Máy khác cần kết nối LAN/VPN, nhận CA cùng credential từ quản trị và cấu hình đường dẫn CA theo máy mình. Xem [thông tin triển khai và kết quả chuyển dữ liệu](docs/POSTGRES_LAN.md). Tệp mẫu chỉ chứa placeholder; đặt `DATABASE_URL` thật trong `.env.local`, không dùng cấu hình Neon cũ để tiếp tục ghi dữ liệu song song sau khi chuyển.
 
 `DATABASE_URL` của API phải dùng endpoint Neon **trực tiếp**, không có hậu tố `-pooler` trong hostname. Tác vụ giám sát giữ session advisory lock qua nhiều transaction ngắn; Neon pooler ở transaction mode không hỗ trợ cách giữ khóa này. Cấu hình mẫu đã dùng endpoint trực tiếp, và API từ chối khởi động nếu phát hiện hostname Neon `-pooler`. Nếu đã đặt `DATABASE_URL` trong môi trường Windows hoặc dịch vụ triển khai, cần đổi biến đó vì nó ưu tiên hơn tệp cấu hình. Tham khảo [Neon connection pooling](https://neon.com/docs/connect/connection-pooling).
 
@@ -125,6 +125,14 @@ Màn hình **Nhập Excel** dùng API T2.2–T2.4 theo [docs/IMPORT_API.md](docs
 Đã có API `POST /api/v1/access-endpoints/{id}/launch` kiểm tra quyền và trả đúng đích SSH/RDP đã lưu, kèm audit quyết định. Cả Quản trị và Chuyên viên cần quyền riêng trên đích; Chuyên viên còn cần máy chủ trong phạm vi phân công. Lãnh đạo không được mở kết nối. Sửa đích làm quyền cũ hết hiệu lực và cần cấp lại.
 
 Chạy `npm.cmd run db:migrate` để áp dụng `008_access_endpoint_grants.sql` rồi khởi động lại API. Quản trị cấp/thu hồi bằng `PUT`/`DELETE /api/v1/users/{userId}/access-endpoints/{endpointId}`. Desktop lấy danh sách đích được phép qua `GET /api/v1/servers/{serverId}/access-endpoints`. Xem [hợp đồng và audit T4.1](docs/ACCESS_API.md) cùng [fixture SSH/RDP](fixtures/access-launch.json). Mở trình khách Windows và kết quả khởi chạy thuộc T4.2.
+
+## Kiểm thử tích hợp — T4.3
+
+Chạy `npm.cmd run test:t43` với `LCIT_TEST_DATABASE_URL` trỏ tới PostgreSQL riêng, chưa có schema `lcit`. Lệnh chạy toàn bộ kiểm thử quyền/đồng thời, luồng xuyên suốt và đo tìm kiếm với 10.000 ứng dụng, 20.000 máy chủ, 20 tài khoản đồng thời; thiếu cấu hình database sẽ báo lỗi thay vì bỏ qua kiểm thử tích hợp. Không dùng database LAN/Neon đang có dữ liệu. Xem [kết quả, cấu hình đo và các giới hạn nghiệm thu](docs/T43_TEST_REPORT.md).
+
+## Triển khai pilot và phục hồi — T4.4
+
+Đã có mẫu HTTPS/Caddy, dịch vụ API/systemd, lịch backup và công cụ sao lưu PostgreSQL cùng kho tệp. Đã thử phục hồi sang database riêng và tải lại tệp mẫu qua API; xem [quy trình triển khai, migration, backup/restore và kết quả T4.4](docs/PILOT_OPERATIONS.md). Chạy lại kiểm chứng bằng `npm.cmd run test:t44` với hai database kiểm thử riêng. Các cấu hình pilot chưa được cài/bật trên máy LAN.
 
 ## Build và chạy ứng dụng Windows
 
