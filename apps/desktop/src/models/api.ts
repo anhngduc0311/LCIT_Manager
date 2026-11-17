@@ -18,7 +18,7 @@ export interface DownloadedFile { blob: Blob; fileName: string }
 const messages: Record<string, string> = {
   INVALID_SESSION: 'Phiên đăng nhập đã hết hạn. Hãy đăng nhập lại.',
   INVALID_CREDENTIALS: 'Tên đăng nhập hoặc mật khẩu không đúng, hoặc tài khoản đã bị khóa.',
-  LOGIN_RATE_LIMITED: 'Bạn đã thử đăng nhập quá nhiều lần. Hãy thử lại sau.',
+  LOGIN_RATE_LIMITED: 'Đăng nhập tạm bị giới hạn. Hãy chờ tối đa 15 phút rồi thử lại.',
   DATABASE_UNAVAILABLE: 'Cơ sở dữ liệu chưa sẵn sàng.',
   FORBIDDEN: 'Tài khoản của bạn không có quyền thực hiện thao tác này.',
   FORBIDDEN_FIELDS: 'Các trường này cần quyền Quản trị.',

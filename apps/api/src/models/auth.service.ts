@@ -50,6 +50,9 @@ export class AuthService {
         return null;
       }
 
+      // A verified sign-in resets this account's failures; retain the IP-wide budget.
+      await client.query('DELETE FROM lcit.login_throttles WHERE key = $1', [accountKey]);
+
       const token = randomBytes(32).toString('base64url');
       const { rows: [session] } = await client.query<{ expiresAt: Date }>(`
         INSERT INTO lcit.sessions (token_hash, user_id, expires_at) VALUES ($1, $2, now() + interval '8 hours')

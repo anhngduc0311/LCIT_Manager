@@ -1,5 +1,7 @@
 # API công khai — api.akatruyen.com
 
+> **Trạng thái 17/11/2026: ĐÃ TẮT theo yêu cầu người dùng.** `lcit-tunnel.service` inactive và disabled; API/PostgreSQL vẫn active. Không còn truy cập API hoặc database qua Tunnel. Các thông tin bên dưới mô tả triển khai trước khi tắt, không phải địa chỉ đang phục vụ. DNS/Access và cấu hình được giữ để có thể phục hồi; chưa triển khai NAT/hosting thay thế. Giao diện/bản build vẫn chứa URL API cũ nên không kết nối được cho tới khi đổi cách triển khai.
+
 Đã triển khai ngày 16/11/2026. API chạy trên máy Ubuntu `192.168.251.126`, kết nối database `lcit_manager` nội bộ. Tên miền công khai đi qua Cloudflare Tunnel, không dùng NAT trên FortiGate và không công khai cổng PostgreSQL.
 
 ## Địa chỉ sử dụng

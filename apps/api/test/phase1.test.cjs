@@ -106,6 +106,17 @@ test('phase 1 migration, catalog permissions, sessions and audit', {
     body: { username, password: suppliedPassword }, status,
   });
   const { token: admin, user: adminUser } = await login('TEST-ADMIN');
+  // Successful sign-ins must not exhaust the five-attempt account budget.
+  for (let i = 0; i < 6; i += 1) {
+    const session = await login('test-admin');
+    await call('POST', '/auth/logout', { token: session.token, status: 204 });
+  }
+  // A successful sign-in also clears earlier failures for this account.
+  for (let round = 0; round < 2; round += 1) {
+    for (let i = 0; i < 4; i += 1) await login('test-admin', 'incorrect', 401);
+    const session = await login('test-admin');
+    await call('POST', '/auth/logout', { token: session.token, status: 204 });
+  }
   const { items: apps, total } = await call('GET', '/applications', { token: admin });
   assert.equal(total, 2);
   const [appA, appB] = ['APP-A', 'APP-B'].map((code) => apps.find((app) => app.code === code));
