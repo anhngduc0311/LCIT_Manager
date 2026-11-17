@@ -126,6 +126,10 @@ Màn hình **Nhập Excel** dùng API T2.2–T2.4 theo [docs/IMPORT_API.md](docs
 
 Chạy `npm.cmd run db:migrate` để áp dụng `008_access_endpoint_grants.sql` rồi khởi động lại API. Quản trị cấp/thu hồi bằng `PUT`/`DELETE /api/v1/users/{userId}/access-endpoints/{endpointId}`. Desktop lấy danh sách đích được phép qua `GET /api/v1/servers/{serverId}/access-endpoints`. Xem [hợp đồng và audit T4.1](docs/ACCESS_API.md) cùng [fixture SSH/RDP](fixtures/access-launch.json). Mở trình khách Windows và kết quả khởi chạy thuộc T4.2.
 
+## Truyền tệp SFTP
+
+Tại chi tiết máy chủ, chọn **Truyền tệp SFTP** ở điểm SSH đã được cấp quyền để duyệt thư mục, tải lên và tải xuống từng tệp tối đa 20 MiB. Chức năng dùng `ssh2-sftp-client` trên API; máy API cần truy cập được máy SSH đích. Xác minh dấu vân tay khóa máy chủ trước khi đăng nhập. Xem [hướng dẫn SFTP](docs/SFTP.md); kiểm thử độc lập bằng `npm.cmd run test:sftp`. Khởi động lại API sau khi cập nhật mã nguồn để nạp các đường dẫn SFTP mới.
+
 ## Kiểm thử tích hợp — T4.3
 
 Chạy `npm.cmd run test:t43` với `LCIT_TEST_DATABASE_URL` trỏ tới PostgreSQL riêng, chưa có schema `lcit`. Lệnh chạy toàn bộ kiểm thử quyền/đồng thời, luồng xuyên suốt và đo tìm kiếm với 10.000 ứng dụng, 20.000 máy chủ, 20 tài khoản đồng thời; thiếu cấu hình database sẽ báo lỗi thay vì bỏ qua kiểm thử tích hợp. Không dùng database LAN/Neon đang có dữ liệu. Xem [kết quả, cấu hình đo và các giới hạn nghiệm thu](docs/T43_TEST_REPORT.md).

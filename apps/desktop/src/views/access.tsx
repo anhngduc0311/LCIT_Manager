@@ -6,6 +6,7 @@ import { AccessEndpoint, protocolName } from '../models/access';
 import { Picker } from './catalog';
 import styles from './reports.module.css';
 import { SshTerminal } from './ssh-terminal';
+import { SftpBrowser } from './sftp-browser';
 
 const toneBadge = { ok: styles.badgeNotice, warn: styles.badgeWarning, error: styles.badgeCritical } as const;
 const toneIcon = { ok: '✓', warn: '◔', error: '⚠' } as const;
@@ -17,6 +18,7 @@ export function AccessPanel({ api, serverId, actorId, admin }: { api: RequestApi
   const { launch, busy, report, terminal, closeTerminal } = useLaunch(api);
   const [granting, setGranting] = useState('');
   const [error, setError] = useState('');
+  const [sftp, setSftp] = useState<AccessEndpoint>();
   const items = result?.data?.items ?? [];
 
   async function grantSelf(endpoint: AccessEndpoint) {
@@ -42,11 +44,13 @@ export function AccessPanel({ api, serverId, actorId, admin }: { api: RequestApi
           {report?.endpointId === endpoint.id && <span className={styles.small} role="status">
             <span className={toneBadge[report.tone]}>{toneIcon[report.tone]}</span> {report.text}{report.reference && <> · Mã đối chiếu <code>{report.reference}</code></>}</span>}</div>
         <div className="actions">
+          {endpoint.protocol === 'ssh' && <button className="secondary" disabled={!endpoint.canLaunch || Boolean(sftp)} onClick={() => setSftp(endpoint)}>Truyền tệp SFTP</button>}
           {admin && !endpoint.canLaunch && <button className="secondary" disabled={Boolean(granting)} onClick={() => void grantSelf(endpoint)}>
             {granting === endpoint.id ? 'Đang cấp…' : 'Cấp quyền cho tôi'}</button>}
           <button disabled={!endpoint.canLaunch || Boolean(busy) || Boolean(terminal)} onClick={() => void launch(endpoint)}>{busy === endpoint.id ? 'Đang mở…' : 'Kết nối'}</button>
         </div></li>)}</ul>)}
-    {terminal && <SshTerminal key={terminal.id} api={api} endpoint={terminal} close={closeTerminal} />}
+    {terminal && <SshTerminal key={`ssh:${terminal.id}`} api={api} endpoint={terminal} close={closeTerminal} />}
+    {sftp && <SftpBrowser key={`sftp:${sftp.id}`} api={api} endpoint={sftp} close={() => setSftp(undefined)} />}
   </div>;
 }
 

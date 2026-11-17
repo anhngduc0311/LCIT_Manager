@@ -5,6 +5,7 @@
   "engines": { "node": ">=22" },
   "workspaces": ["apps/api", "apps/desktop"],
   "scripts": {
+    "test:sftp": "npm run test:sftp --workspace @lcit/api",
     "build": "npm run build --workspaces",
     "typecheck": "npm run typecheck --workspaces",
     "test:t43": "npm run test:t43 --workspace @lcit/api",

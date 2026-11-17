@@ -11,6 +11,8 @@ import { AlertsController, NotificationsController } from './controllers/notific
 import { NotificationsService } from './models/notifications.service';
 import { AccessLaunchController } from './controllers/access-launch.controller';
 import { AccessLaunchService } from './models/access-launch.service';
+import { SftpController } from './controllers/sftp.controller';
+import { SftpService } from './models/sftp.service';
 import { AttachmentsController, PermissionsController } from './controllers/attachments.controller';
 import { AuditController } from './controllers/audit.controller';
 import { AuthController } from './controllers/auth.controller';
@@ -39,9 +41,9 @@ import { ImportsService } from './models/imports.service';
   imports: [ScheduleModule.forRoot()],
   controllers: [HealthController, AuthController, UsersController, AuditController, ...catalogControllers, ApplicationDatabasesController,
     ...infrastructureControllers, SearchController, AttachmentsController, PermissionsController, ImportsController, MonitoringController, MonitoringTargetsController,
-    AlertsController, NotificationsController, ReportsController, AccessLaunchController],
+    AlertsController, NotificationsController, ReportsController, AccessLaunchController, SftpController],
   providers: [Database, AuditService, AuthService, UsersService, CatalogService, SessionGuard, InfrastructureService, SearchService,
     FileStore, PermissionsService, AttachmentsService, ImportsService, MonitoringService, ExpiryMonitorService,
-    NetworkProbe, NetworkMonitorService, MonitoringTargetsService, NotificationsService, ReportsService, AccessLaunchService],
+    NetworkProbe, NetworkMonitorService, MonitoringTargetsService, NotificationsService, ReportsService, AccessLaunchService, SftpService],
 })
 export class AppModule {}

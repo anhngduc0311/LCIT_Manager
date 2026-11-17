@@ -1,0 +1,10 @@
+.panel { margin-top: 1rem; padding: 1rem; border: 1px solid var(--border, #cbd5e1); border-radius: 12px; min-width: 0; }
+.login, .navigation { display: flex; flex-wrap: wrap; gap: .75rem; align-items: end; margin-block: 1rem; }
+.login label, .path { display: grid; gap: .35rem; }
+.path { flex: 1 1 240px; }
+.verification { flex: 1 0 100%; padding: .75rem; border: 1px solid #c99839; border-radius: 8px; }
+.verification code { display: block; margin-top: .5rem; overflow-wrap: anywhere; }
+.files { overflow: auto; max-height: 440px; }
+.files table { width: 100%; border-collapse: collapse; }
+.files th, .files td { text-align: left; padding: .6rem; border-bottom: 1px solid var(--border, #cbd5e1); }
+.name { overflow-wrap: anywhere; min-width: 160px; }

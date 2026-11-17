@@ -16,6 +16,20 @@ export type RequestApi = <T>(path: string, options?: RequestOptions) => Promise<
 export interface DownloadedFile { blob: Blob; fileName: string }
 
 const messages: Record<string, string> = {
+  SFTP_SSH_REQUIRED: 'SFTP chỉ dùng với điểm truy cập SSH.',
+  SFTP_LIMIT: 'Đã đạt giới hạn phiên SFTP. Đóng phiên cũ rồi thử lại.',
+  SFTP_HOST_KEY_CHANGED: 'Khóa máy chủ khác với khóa đã xác nhận. Hãy nhờ quản trị máy đích kiểm tra trước khi kết nối lại.',
+  SFTP_CONNECT_FAILED: 'Không kết nối được SFTP. Kiểm tra tài khoản, mật khẩu, mạng từ máy API và dịch vụ SFTP trên máy đích.',
+  SFTP_AUTH_FAILED: 'Máy SSH từ chối đăng nhập. Kiểm tra tên tài khoản, mật khẩu và quyền đăng nhập của tài khoản trên máy đích.',
+  SFTP_INTERACTIVE_REQUIRED: 'Máy SSH yêu cầu OTP hoặc bước xác thực bổ sung. Biểu mẫu SFTP hiện chỉ hỗ trợ mật khẩu; hãy dùng terminal SSH để đăng nhập tương tác.',
+  SFTP_CONNECT_TIMEOUT: 'Máy SSH phản hồi quá chậm khi mở SFTP. Kiểm tra kết nối và thử lại.',
+  SFTP_SUBSYSTEM_FAILED: 'Đã đăng nhập SSH nhưng máy đích không mở được SFTP. Nhờ quản trị kiểm tra dịch vụ hoặc cấu hình SFTP trên máy đích.',
+  SFTP_HOME_UNAVAILABLE: 'Đã kết nối SFTP nhưng không đọc được thư mục ban đầu. Nhờ quản trị kiểm tra thư mục và quyền của tài khoản SSH.',
+  SFTP_SESSION_CLOSED: 'Phiên SFTP đã đóng hoặc hết hạn. Hãy kết nối lại.',
+  SFTP_BUSY: 'Một thao tác SFTP khác đang chạy. Hãy chờ hoàn tất.',
+  SFTP_TIMEOUT: 'Thao tác SFTP quá thời gian chờ. Hãy kết nối lại.',
+  SFTP_OPERATION_FAILED: 'Thao tác SFTP thất bại. Kiểm tra quyền trên máy đích, tên tệp có bị trùng và kết nối lại.',
+  SFTP_FILE_REQUIRED: 'Hãy chọn một tệp thông thường để tải xuống.',
   INVALID_SESSION: 'Phiên đăng nhập đã hết hạn. Hãy đăng nhập lại.',
   INVALID_CREDENTIALS: 'Tên đăng nhập hoặc mật khẩu không đúng, hoặc tài khoản đã bị khóa.',
   LOGIN_RATE_LIMITED: 'Đăng nhập tạm bị giới hạn. Hãy chờ tối đa 15 phút rồi thử lại.',
@@ -63,7 +77,7 @@ export class ApiFailure extends Error {
 export async function requestApi<T>(path: string, { method = 'GET', body, signal, file, binary }: RequestOptions = {}, token?: string): Promise<T> {
   let response: Response;
   // Files may be up to 20 MiB, so they get a longer timeout than JSON requests.
-  const timeout = AbortSignal.timeout(file || binary ? 120_000 : 12_000);
+  const timeout = AbortSignal.timeout(file || binary || path.startsWith('/sftp/') ? 120_000 : 12_000);
   try {
     response = await fetch(`${apiUrl}/api/v1${path}`, {
       method: file ? 'POST' : method, cache: 'no-store', signal: signal ? AbortSignal.any([signal, timeout]) : timeout,

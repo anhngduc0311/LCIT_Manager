@@ -1,5 +1,7 @@
 # Mở SSH/RDP trên desktop — T4.2
 
+Chức năng truyền tệp qua `ssh2-sftp-client`: xem [SFTP.md](SFTP.md).
+
 ## SSH tích hợp trong LCIT Manager (xterm.js)
 
 SSH hiện mở ngay trong giao diện bằng `@xterm/xterm` và `@xterm/addon-fit`. Phần Rust dùng `portable-pty` (ConPTY trên Windows) để chạy OpenSSH hệ thống, truyền dữ liệu qua Tauri Channel. RDP tiếp tục dùng `launch_access` và cửa sổ Remote Desktop. Các mục bên dưới mô tả luồng cửa sổ riêng trước khi tích hợp xterm.js.
