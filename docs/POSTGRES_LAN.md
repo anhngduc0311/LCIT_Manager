@@ -2,7 +2,7 @@
 
 Đã triển khai ngày 16/11/2026 trên máy Ubuntu 24.04 `192.168.251.126`, dùng PostgreSQL 16.15 từ kho Ubuntu. Dịch vụ tự khởi động cùng máy. Đây là database trên máy chủ nội bộ có đường LAN/VPN, không phải địa chỉ công khai trên Internet.
 
-Từ 17/11/2026 có thêm [pgAdmin qua Cloudflare Tunnel](PGADMIN_TUNNEL.md): không cần VPN, dùng client cloudflared + đăng nhập Access, sau đó kết nối `127.0.0.1:15432`. Các bước LAN/VPN bên dưới vẫn áp dụng nếu kết nối trực tiếp IP nội bộ.
+Cloudflare Tunnel đã được tắt theo yêu cầu ngày 17/11/2026; kết nối `127.0.0.1:15432` hiện không hoạt động. Dùng các bước LAN/VPN bên dưới để kết nối trực tiếp IP nội bộ. [Tài liệu Tunnel](PGADMIN_TUNNEL.md) được giữ làm lịch sử cấu hình.
 
 ## Thông tin kết nối
 

@@ -1,5 +1,7 @@
 # pgAdmin qua Cloudflare Tunnel
 
+> **Trạng thái 17/11/2026: ĐÃ TẮT theo yêu cầu người dùng.** Tunnel máy chủ đã dừng và disabled; client cổng 15432 trên máy Admin đã dừng, shortcut Desktop chuyển vào thư mục riêng với tên `LCIT Database Tunnel.disabled.lnk`. Hướng dẫn bên dưới chỉ là cấu hình trước đây, hiện không dùng được. Dùng pgAdmin qua LAN/VPN với host `192.168.251.126`, port `5432`, cùng tài khoản/CA hiện có theo `POSTGRES_LAN.md`.
+
 Đã triển khai ngày 17/11/2026. `db.akatruyen.com` đi qua tunnel `lcit-manager-api` tới PostgreSQL loopback `127.0.0.1:5432` trên máy chủ. Không cần NAT hoặc VPN trên máy dùng pgAdmin; máy chủ và máy khách phải có Internet.
 
 ## Mở kết nối

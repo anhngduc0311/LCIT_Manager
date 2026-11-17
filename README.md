@@ -4,7 +4,7 @@ Nền tảng phát triển cho ứng dụng quản lý hạ tầng. Desktop dùn
 
 ## Chạy lần đầu sau khi clone trên Windows
 
-API dùng chung đã có tại **`https://api.akatruyen.com`** qua Cloudflare Tunnel. Người dùng phần mềm không cần VPN để gọi API; database vẫn ở mạng nội bộ. Quản trị có thể dùng [pgAdmin qua Tunnel có Cloudflare Access](docs/PGADMIN_TUNNEL.md) mà không cần VPN. Khi build giao diện/bộ cài cho người khác, đặt `NEXT_PUBLIC_API_URL=https://api.akatruyen.com` trước khi build. Xem [triển khai tên miền, dịch vụ và cấu hình bản build](docs/PUBLIC_API.md).
+
 
 Để chạy trên trình duyệt, chuẩn bị **Node.js 22 trở lên**, npm và quyền truy cập cơ sở dữ liệu **PostgreSQL Neon** dùng cho phát triển. Chạy các lệnh bên dưới trong PowerShell tại thư mục gốc `LCIT_Manager`.
 
