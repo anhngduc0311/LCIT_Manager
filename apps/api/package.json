@@ -7,11 +7,11 @@
     "typecheck": "tsc --noEmit",
     "test": "npm run build && node --test --test-concurrency=1 test/phase1.test.cjs test/phase2-attachments.test.cjs test/phase2-imports.test.cjs test/phase3-monitoring.test.cjs test/phase3-expiry.test.cjs test/phase3-network.test.cjs test/phase3-notifications.test.cjs test/phase3-reports.test.cjs test/phase4-access.test.cjs",
     "dev": "npm run build && npm start",
-    "start": "node --env-file-if-exists=.env.example dist/main.js",
-    "db:migrate": "npm run build && node --env-file-if-exists=.env.example dist/migrate.js",
-    "db:seed": "npm run build && node --env-file-if-exists=.env.example dist/seed.js",
-    "db:bootstrap-admin": "npm run build && node --env-file-if-exists=.env.example dist/bootstrap-admin.js",
-    "attachments:cleanup": "npm run build && node --env-file-if-exists=.env.example dist/attachments-cleanup.js"
+    "start": "node --env-file-if-exists=.env.example --env-file-if-exists=.env.local dist/main.js",
+    "db:migrate": "npm run build && node --env-file-if-exists=.env.example --env-file-if-exists=.env.local --env-file-if-exists=.env.migrate.local dist/migrate.js",
+    "db:seed": "npm run build && node --env-file-if-exists=.env.example --env-file-if-exists=.env.local dist/seed.js",
+    "db:bootstrap-admin": "npm run build && node --env-file-if-exists=.env.example --env-file-if-exists=.env.local dist/bootstrap-admin.js",
+    "attachments:cleanup": "npm run build && node --env-file-if-exists=.env.example --env-file-if-exists=.env.local dist/attachments-cleanup.js"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.0",
