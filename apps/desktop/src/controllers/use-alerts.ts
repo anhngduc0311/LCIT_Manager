@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiFailure, Page, RequestApi } from '../models/api';
 import { Alert, AlertKind, AppNotification, describeAlert, NotificationPage } from '../models/alerts';
+import { inTauri } from '../models/tauri';
 import { errorText, useRemote } from './use-remote';
 
 const pollMs = 60_000;
@@ -14,8 +15,6 @@ function readShown(userId: string): Set<string> {
 function writeShown(userId: string, ids: Set<string>) {
   try { localStorage.setItem(`${shownKey}.${userId}`, JSON.stringify([...ids].slice(-1000))); } catch { /* storage unavailable */ }
 }
-
-const inTauri = () => typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 
 /** Windows toast through the Tauri notification plugin; the browser Notification API outside Tauri. */
 async function showSystemNotification(item: AppNotification) {
