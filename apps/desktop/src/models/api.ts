@@ -40,6 +40,11 @@ const messages: Record<string, string> = {
   IMPORT_CONFLICT: 'Danh mục đã thay đổi kể từ lúc xem trước. Hãy bấm “Xem trước lại”, kiểm tra rồi xác nhận lại.',
   IMPORT_COMPLETED: 'Lô này đã hoàn tất, không thể xem trước lại. Hãy tải lô mới.',
   IMPORT_TOO_LARGE: 'Tệp vượt quá 10 MiB cho mỗi lô nhập.',
+  CONNECTION_NOT_PERMITTED: 'Vai trò của bạn không được mở kết nối SSH/RDP.',
+  CONNECTION_GRANT_REQUIRED: 'Bạn chưa được Quản trị cấp quyền cho điểm truy cập này, hoặc cấu hình đã đổi và cần cấp lại.',
+  CONNECTION_ACCOUNT_INELIGIBLE: 'Chỉ cấp quyền kết nối cho Quản trị hoặc Chuyên viên đang hoạt động.',
+  CONNECTION_TARGET_OUT_OF_SCOPE: 'Máy chủ đã lưu trữ hoặc ngoài phạm vi tài khoản này. Chuyên viên cần được phân công ứng dụng và liên kết máy chủ trước.',
+  ACCESS_ENDPOINT_INVALID: 'Dữ liệu điểm truy cập đã lưu không hợp lệ. Báo Quản trị sửa.',
   EXPORT_NOT_PERMITTED: 'Bạn chưa được Quản trị cấp quyền xuất báo cáo.',
   REPORT_TOO_LARGE: 'Báo cáo quá lớn (trên 10.000 ứng dụng). Hãy thu hẹp bộ lọc.',
 };

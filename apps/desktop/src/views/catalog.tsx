@@ -3,6 +3,7 @@ import { useCatalogDetail, useCatalogList } from '../controllers/use-catalog';
 import { errorText, useRemote } from '../controllers/use-remote';
 import { Page, RecordItem, RequestApi, Role } from '../models/api';
 import { Kind } from '../models/catalog';
+import { AccessGrants, AccessPanel } from './access';
 import { Attachments, Permissions } from './attachments';
 import { catalogs, childGroups, Field, roleNames } from './catalog-config';
 import accountStyles from './accounts.module.css';
@@ -229,7 +230,7 @@ function DnsLinks({ api, path, ids, mutate, canEdit }: { api: RequestApi; path: 
   </div>;
 }
 
-export function Detail({ kind, id, api, role, open, back }: { kind: Kind; id: string; api: RequestApi; role: Role;
+export function Detail({ kind, id, api, role, actorId, open, back }: { kind: Kind; id: string; api: RequestApi; role: Role; actorId: string;
   open: (kind: Kind, id: string) => void; back: () => void }) {
   const { path, revision, editing, setEditing, error, busy, result, item, admin, assignment, canEdit, refresh, mutate, saveItem, saveChild } = useCatalogDetail(api, kind, id, role, back);
   const config = catalogs[kind];
@@ -265,6 +266,8 @@ export function Detail({ kind, id, api, role, open, back }: { kind: Kind; id: st
         mutate={(url, method) => mutate(url, method, { version: item.version })} canEdit={admin} />}
       {kind === 'applications' && <Attachments api={api} applicationId={item.id} />}
       {kind === 'users' && admin && item.role !== 'admin' && <Permissions api={api} userId={item.id} />}
+      {kind === 'users' && admin && item.role !== 'leader' && <AccessGrants api={api} userId={item.id} />}
+      {kind === 'servers' && role !== 'leader' && <AccessPanel api={api} serverId={item.id} actorId={actorId} admin={admin} />}
       {childGroups[kind]?.filter((group) => admin || ['addresses', 'dnsRecords'].includes(group.key)).map((group) => {
         const records = (item[group.key] ?? []) as RecordItem[];
         const adding = editing === group.path;
