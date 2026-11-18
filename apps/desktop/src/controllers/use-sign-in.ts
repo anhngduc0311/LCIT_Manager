@@ -1,14 +1,23 @@
 import { FormEvent, useEffect, useState } from 'react';
-import { checkHealth, requestApi, Session } from '../models/api';
+import { checkHealth, ensureLocalApi, requestApi, Session } from '../models/api';
 
 export function useSignIn(onLogin: (session: Session) => void) {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    void ensureLocalApi().catch(() => {
+      // The login form retries startup and displays any error on submit.
+    });
+  }, []);
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
     setBusy(true); setError('');
-    try { onLogin(await requestApi<Session>('/auth/login', { method: 'POST', body: { username: data.get('username'), password: data.get('password') } })); }
+    try {
+      await ensureLocalApi();
+      onLogin(await requestApi<Session>('/auth/login', { method: 'POST', body: { username: data.get('username'), password: data.get('password') } }));
+    }
     catch (error) { setError(error instanceof Error ? error.message : 'Không thể đăng nhập.'); }
     finally { setBusy(false); }
   }

@@ -62,7 +62,6 @@ export function SignIn({ onLogin, notice }: { onLogin: (session: Session) => voi
           <button type="submit" className={styles.submit} disabled={busy}>{busy ? 'Đang đăng nhập…' : 'Đăng nhập'}</button>
         </form>
       </section>
-      <Health />
     </div>
   </main>;
 }

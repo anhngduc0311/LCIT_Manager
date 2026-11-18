@@ -30,6 +30,10 @@ async function bootstrap() {
 }
 
 void bootstrap().catch((error: unknown) => {
-  console.error(error instanceof DirectDatabaseConnectionRequired ? error.message : 'API startup failed. Check API_HOST, API_PORT and local configuration.');
-  process.exitCode = 1;
+  const code = (error as NodeJS.ErrnoException | undefined)?.code;
+  const reason = code && /^[A-Z0-9_]+$/.test(code) ? ` (${code})` : '';
+  console.error(error instanceof DirectDatabaseConnectionRequired
+    ? error.message
+    : `API startup failed${reason}. Check the API and database configuration.`);
+  process.exit(1);
 });
