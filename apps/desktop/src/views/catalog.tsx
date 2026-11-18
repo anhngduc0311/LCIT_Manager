@@ -198,7 +198,7 @@ export function Catalog({ kind, api, role, actorId, open }: { kind: Kind; api: R
 
   return <section className="panel catalog-panel"><div className="section-title"><div><p className="eyebrow">DANH MỤC HỆ THỐNG</p><h1>{config.title}</h1><p className="page-description">Quản lý và tra cứu thông tin {config.title.toLocaleLowerCase('vi')}.</p></div><div className="actions">
     {role === 'admin' && ['applications', 'servers', 'domains', 'databases', 'organizations', 'data-centers'].includes(kind) && !creating && <button className="secondary" onClick={() => setImporting(true)}>Nhập Excel</button>}
-    {role === 'admin' && !creating && <button onClick={() => setCreating(true)}>Thêm mới</button>}
+    {role === 'admin' && !creating && <button onClick={() => { setCreating(true); }}>Thêm mới</button>}
     <ReloadButton loading={loading} reload={reload} />
   </div></div>
     {creating && <EditForm api={api} fields={config.fields} save={async (body) => {
@@ -206,15 +206,19 @@ export function Catalog({ kind, api, role, actorId, open }: { kind: Kind; api: R
     }} cancel={() => setCreating(false)} />}
     <span className={loadingStyles.announcement} role="status">{loading ? `Đang tải danh mục ${config.title.toLocaleLowerCase('vi')}…` : ''}</span>
     {listing?.error && <p className="error" role="alert">{listing.error}</p>}
+    {removeError && <p className="error" role="alert">{removeError}</p>}
     <div aria-busy={loading} className={loadingStyles.catalogRows}>
       {loading && <ul className="rows" aria-hidden="true">{[0, 1, 2].map((row) => <li key={row} className={loadingStyles.placeholder}>
         <span className={`${loadingStyles.skeleton} ${loadingStyles.rowTitle}`} />
         <span className={`${loadingStyles.skeleton} ${loadingStyles.rowCode}`} />
       </li>)}</ul>}
       {listing?.data && <>{listing.data.items.length === 0 ? <p className="empty">Chưa có dữ liệu trong phạm vi của bạn.</p> :
-      <ul className="rows">{listing.data.items.map((row) => <li key={row.id}>
+      <ul className="rows">{listing.data.items.map((row) => <li key={row.id} className="catalog-row">
         <button className="text-button" onClick={() => open(kind, row.id)}>{itemTitle(row)}</button>
-        <span className="muted">{String(row.code ?? row.username ?? row.renewalDate ?? '')}</span>
+        <div className="row-end"><span className="muted">{String(row.code ?? row.username ?? row.renewalDate ?? '')}</span>
+          {role === 'admin' && <div className="actions">
+            <button type="button" className="secondary account-delete" disabled={removing || creating} aria-label={`Xóa ${itemTitle(row)}`} onClick={() => { if (window.confirm(`Xóa "${itemTitle(row)}"?`)) void removeItem(row); }}>Xóa</button>
+          </div>}</div>
       </li>)}</ul>}<Pager {...listing.data} change={setPage} /></>}
     </div>
   </section>;
@@ -275,9 +279,6 @@ export function Detail({ kind, id, api, role, actorId, open, back }: { kind: Kin
     <h1>{item ? itemTitle(item) : 'Chi tiết'}</h1></div><div className="actions">
     <button className="secondary" onClick={refresh} disabled={busy}>Tải lại</button>
     {item && canEdit && <button onClick={() => setEditing('root')} disabled={busy}>Sửa</button>}
-    {item && admin && kind !== 'users' && <button className="secondary" disabled={busy} onClick={() => {
-      if (window.confirm('Lưu trữ bản ghi này?')) void mutate(`${path}/archive`, 'POST', { version: item.version });
-    }}>Lưu trữ</button>}
   </div></div>
     {!result && <p role="status">Đang tải chi tiết…</p>}
     {(result?.error || error || assignment?.error) && <p className="error" role="alert">{result?.error || error || assignment?.error}</p>}

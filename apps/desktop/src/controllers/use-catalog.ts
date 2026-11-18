@@ -20,13 +20,14 @@ export function useCatalogList(api: RequestApi, kind: Kind) {
     if (removing || !data) return;
     setRemoving(true); setRemoveError('');
     try {
-      await api(`/${kind}/${item.id}`, { method: 'DELETE', body: { version: item.version } });
+      if (kind === 'users') await api(`/${kind}/${item.id}`, { method: 'DELETE', body: { version: item.version } });
+      else await api(`/${kind}/${item.id}/archive`, { method: 'POST', body: { version: item.version } });
       const { total, pageSize } = data;
       setPage(Math.min(page, Math.max(1, Math.ceil((total - 1) / pageSize))));
       reload();
     } catch (error) {
       setRemoveError(error instanceof ApiFailure && error.code === 'HTTP_404'
-        ? 'API đang chạy chưa hỗ trợ xóa tài khoản. Hãy cập nhật và khởi động lại API.'
+        ? 'API đang chạy chưa hỗ trợ thao tác xóa. Hãy cập nhật và khởi động lại API.'
         : errorText(error));
     }
     finally { setRemoving(false); }
