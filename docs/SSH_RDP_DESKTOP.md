@@ -24,11 +24,11 @@ Kiểm tra: `cargo test` kiểm tra nạp thành phần RDP thật, cấu hình 
 
 ## SSH tích hợp trong LCIT Manager (xterm.js)
 
-SSH hiện mở ngay trong giao diện bằng `@xterm/xterm` và `@xterm/addon-fit`. Phần Rust dùng `portable-pty` (ConPTY trên Windows) để chạy OpenSSH hệ thống, truyền dữ liệu qua Tauri Channel. RDP dùng giao diện nhúng mô tả ở trên. Các mục luồng cửa sổ riêng bên dưới là mô tả lịch sử trước khi tích hợp giao diện nhúng.
+SSH mở ngay trong giao diện bằng `@xterm/xterm` và `@xterm/addon-fit`. Sau khi đăng nhập SSH qua **Kết nối**, nút **Mở SFTP** cạnh **Đóng terminal** mở trình duyệt tệp trên cùng kết nối, theo [SFTP.md](SFTP.md). Tùy chọn **Mở SSH riêng** dùng OpenSSH hệ thống qua ConPTY và Tauri Channel.
 
-Luồng SSH hiện tại:
+Luồng **Mở SSH riêng**:
 
-1. Ở **Máy chủ → Kết nối SSH/RDP**, chọn **Kết nối** tại điểm SSH được cấp quyền.
+1. Ở **Máy chủ → Kết nối SSH/RDP**, chọn **Kết nối** tại điểm SSH được cấp quyền, rồi chọn **Mở SSH riêng**.
 2. Nhập **Tên đăng nhập SSH**, bấm **Mở SSH**. Mỗi lần mở mới gọi `POST /access-endpoints/{id}/launch` để kiểm tra quyền và ghi audit. Đích lấy từ phản hồi mới nhất của API.
 3. `ssh_open` kiểm tra đích và tên đăng nhập, chạy OpenSSH với `-tt -l <username>` cùng cổng, host và thời gian chờ đã kiểm tra. Không thông qua shell.
 4. Nhập mật khẩu hoặc trả lời câu hỏi khóa máy chủ ngay trong terminal; mật khẩu không hiển thị. OpenSSH quản lý `known_hosts`, SSH config và khóa như thông thường. Không tự chấp nhận khóa máy chủ.

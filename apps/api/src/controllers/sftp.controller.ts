@@ -22,9 +22,33 @@ export class SftpController {
   } } })
   open(@Req() request: SessionRequest, @Param('id') id: string, @Body() input: unknown) { return this.sftp.open(request, id, input); }
 
+  @Post('access-endpoints/:id/ssh/sessions')
+  @HttpCode(200)
+  openSsh(@Req() request: SessionRequest, @Param('id') id: string, @Body() input: unknown) { return this.sftp.open(request, id, input, true); }
+
+  @Post('sftp/sessions/:id/files/open')
+  @HttpCode(200)
+  openFiles(@Req() request: SessionRequest, @Param('id') id: string) { return this.sftp.openFiles(request, id); }
+
   @Get('sftp/sessions/:id/files')
   @ApiOperation({ summary: 'List a remote directory. Rechecks the current endpoint grant.' })
   list(@Req() request: SessionRequest, @Param('id') id: string, @Query('path') path: unknown) { return this.sftp.list(request, id, path); }
+
+  @Delete('sftp/sessions/:id/files')
+  @HttpCode(204)
+  @ApiOperation({ summary: 'Delete a regular remote file using the active SFTP session.' })
+  removeFile(@Req() request: SessionRequest, @Param('id') id: string, @Query('path') path: unknown) { return this.sftp.removeFile(request, id, path); }
+
+  @Post('sftp/sessions/:id/shell')
+  @HttpCode(204)
+  openShell(@Req() request: SessionRequest, @Param('id') id: string, @Body() input: unknown) { return this.sftp.openShell(request, id, input); }
+
+  @Get('sftp/sessions/:id/shell')
+  readShell(@Req() request: SessionRequest, @Param('id') id: string) { return this.sftp.readShell(request, id); }
+
+  @Post('sftp/sessions/:id/shell/input')
+  @HttpCode(204)
+  writeShell(@Req() request: SessionRequest, @Param('id') id: string, @Body() input: unknown) { return this.sftp.writeShell(request, id, input); }
 
   @Post('sftp/sessions/:id/upload')
   @ApiConsumes('application/octet-stream')

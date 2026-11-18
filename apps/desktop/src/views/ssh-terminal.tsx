@@ -21,14 +21,15 @@ export function SshTerminal({ api, endpoint, close }: { api: RequestApi; endpoin
 
   async function connect() {
     if (busy || connection) return;
-    if (!/^[a-zA-Z0-9._@\\-]+$/.test(username.trim()) || username.trim().startsWith('-')) {
+    const account = username.trim();
+    if (!/^[a-zA-Z0-9._@\\-]+$/.test(account) || account.startsWith('-')) {
       setError('Tên đăng nhập SSH không hợp lệ.'); return;
     }
     setBusy(true); setError('');
     try {
       const grant = await api<AccessLaunchResponse>(`/access-endpoints/${endpoint.id}/launch`, { method: 'POST' });
       if (grant.protocol !== 'ssh') throw new Error('Điểm truy cập đã đổi giao thức. Hãy đóng và tải lại.');
-      if (mounted.current) setConnection({ grant, username: username.trim() });
+      if (mounted.current) setConnection({ grant, username: account });
     } catch (failure) { if (mounted.current) setError(errorText(failure)); }
     finally { if (mounted.current) setBusy(false); }
   }
@@ -109,7 +110,8 @@ export function SshTerminal({ api, endpoint, close }: { api: RequestApi; endpoin
 
   return <section className={styles.panel} aria-label="Terminal SSH">
     <div className={styles.header}><strong>SSH · {connection?.grant.host ?? endpoint.host}:{connection?.grant.port ?? endpoint.port}</strong>
-      <button className="secondary" onClick={close}>Đóng terminal</button></div>
+      <button type="button" className="secondary" onClick={close}>Đóng terminal</button>
+    </div>
     {!connection && <form className={styles.login} onSubmit={(event) => { event.preventDefault(); void connect(); }}>
       <label>Tên đăng nhập SSH <input autoFocus required maxLength={128} value={username} disabled={busy} onChange={(event) => setUsername(event.target.value)} autoComplete="username" /></label>
       <button disabled={busy || !username.trim()}>{busy ? 'Đang kiểm tra quyền…' : 'Mở SSH'}</button>

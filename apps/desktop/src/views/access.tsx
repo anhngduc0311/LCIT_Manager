@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useEndpoints, useGrants, useLaunch } from '../controllers/use-access';
 import { errorText, useRemote } from '../controllers/use-remote';
 import { Page, RecordItem, RequestApi } from '../models/api';
@@ -6,8 +6,10 @@ import { AccessEndpoint, protocolName } from '../models/access';
 import { Picker } from './catalog';
 import styles from './reports.module.css';
 import { SshTerminal } from './ssh-terminal';
+import { SharedSshTerminal } from './shared-ssh-terminal';
 import { SftpBrowser } from './sftp-browser';
 import { RdpDesktop } from './rdp-desktop';
+import layout from './access.module.css';
 
 const toneBadge = { ok: styles.badgeNotice, warn: styles.badgeWarning, error: styles.badgeCritical } as const;
 const toneIcon = { ok: '✓', warn: '◔', error: '⚠' } as const;
@@ -20,7 +22,19 @@ export function AccessPanel({ api, serverId, actorId, admin, changed }: { api: R
   const [granting, setGranting] = useState('');
   const [error, setError] = useState('');
   const [sftp, setSftp] = useState<AccessEndpoint>();
+  const [filePanel, setFilePanel] = useState<'closed' | 'visible' | 'hidden'>('closed');
+  const [nativeSsh, setNativeSsh] = useState(false);
+  const [sharedSessionId, setSharedSessionId] = useState<string>();
   const items = result?.data?.items ?? [];
+  const combined = nativeSsh ? undefined : terminal;
+  const showFiles = filePanel === 'visible';
+  const fileWorkspace = useRef<HTMLDivElement>(null);
+
+  useEffect(() => { if (showFiles) fileWorkspace.current?.scrollIntoView({ block: 'start' }); }, [showFiles]);
+
+  function closeSsh() {
+    closeTerminal(); setFilePanel('closed'); setNativeSsh(false); setSharedSessionId(undefined);
+  }
 
   async function useDefaultRdpPort(endpoint: AccessEndpoint) {
     const server = await api<RecordItem>(`/servers/${serverId}`);
@@ -44,8 +58,8 @@ export function AccessPanel({ api, serverId, actorId, admin, changed }: { api: R
 
   return <div className="subpanel" aria-busy={Boolean(busy)}><div className="section-title"><h3>Kết nối SSH/RDP</h3>
     <button className="secondary" disabled={Boolean(busy)} onClick={reload}>Tải lại</button></div>
-    <p className="muted">SSH và RDP hiển thị ngay trong ứng dụng. Hệ thống kiểm tra quyền và ghi nhật ký trước mỗi kết nối. Bạn đăng nhập trực tiếp vào máy đích.
-      Cần có VPN hoặc đường mạng tới máy đích.</p>
+    <p className="muted">SSH và RDP hiển thị ngay trong ứng dụng. Hệ thống kiểm tra quyền và ghi nhật ký trước mỗi kết nối.
+      Khi dùng chung SSH và SFTP, máy chạy API cần có đường mạng tới máy đích.</p>
     {!result && <p role="status">Đang tải điểm truy cập…</p>}
     {result?.error && <p className="error" role="alert">{result.error}</p>}
     {error && <p className="error" role="alert">{error}</p>}
@@ -57,13 +71,21 @@ export function AccessPanel({ api, serverId, actorId, admin, changed }: { api: R
           {report?.endpointId === endpoint.id && <span className={styles.small} role="status">
             <span className={toneBadge[report.tone]}>{toneIcon[report.tone]}</span> {report.text}{report.reference && <> · Mã đối chiếu <code>{report.reference}</code></>}</span>}</div>
         <div className="actions">
-          {endpoint.protocol === 'ssh' && <button className="secondary" disabled={!endpoint.canLaunch || Boolean(sftp)} onClick={() => setSftp(endpoint)}>Truyền tệp SFTP</button>}
+          {endpoint.protocol === 'ssh' && endpoint.id !== combined?.id && <button className="secondary" disabled={!endpoint.canLaunch || Boolean(sftp)} onClick={() => setSftp(endpoint)}>Truyền tệp SFTP</button>}
           {admin && !endpoint.canLaunch && <button className="secondary" disabled={Boolean(granting)} onClick={() => void grantSelf(endpoint)}>
             {granting === endpoint.id ? 'Đang cấp…' : 'Cấp quyền cho tôi'}</button>}
           <button disabled={!endpoint.canLaunch || Boolean(busy) || (endpoint.protocol === 'ssh' ? Boolean(terminal) : Boolean(rdp))} onClick={() => void launch(endpoint)}>{busy === endpoint.id ? 'Đang mở…' : endpoint.protocol === 'rdp' ? 'Mở màn hình RDP' : 'Kết nối'}</button>
         </div></li>)}</ul>)}
-    {terminal && <SshTerminal key={`ssh:${terminal.id}`} api={api} endpoint={terminal} close={closeTerminal} />}
-    {sftp && <SftpBrowser key={`sftp:${sftp.id}`} api={api} endpoint={sftp} close={() => setSftp(undefined)} />}
+    {(terminal || sftp) && <div>
+      {combined && <SharedSshTerminal key={`shared:${combined.id}`} api={api} endpoint={combined} sessionId={sharedSessionId}
+        connected={setSharedSessionId} close={closeSsh} openSftp={() => setFilePanel(showFiles ? 'hidden' : 'visible')}
+        sftpVisible={showFiles} useNative={() => setNativeSsh(true)} />}
+      {terminal && nativeSsh && <SshTerminal key={`ssh:${terminal.id}`} api={api} endpoint={terminal} close={closeSsh} />}
+      {combined && sharedSessionId && filePanel !== 'closed' && <div className={layout.files} ref={fileWorkspace} hidden={!showFiles}>
+        <SftpBrowser key={sharedSessionId} api={api} endpoint={combined} sharedSessionId={sharedSessionId} close={() => setFilePanel('hidden')} />
+      </div>}
+      {sftp && <SftpBrowser key={sftp.id} api={api} endpoint={sftp} close={() => setSftp(undefined)} />}
+    </div>}
     {rdp && <RdpDesktop key={`rdp:${rdp.id}`} api={api} endpoint={rdp} close={closeRdp} fixDefaultPort={admin ? () => useDefaultRdpPort(rdp) : undefined} />}
   </div>;
 }

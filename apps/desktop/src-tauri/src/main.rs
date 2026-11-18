@@ -6,6 +6,8 @@ mod rdp;
 
 #[cfg(all(windows, not(debug_assertions)))]
 mod bundled_api;
+#[cfg(all(windows, not(debug_assertions)))]
+mod desktop_update;
 
 use tauri::{
     menu::{Menu, MenuItem},
@@ -38,6 +40,7 @@ fn main() {
     #[cfg(all(windows, not(debug_assertions)))]
     let builder = builder
         .plugin(tauri_plugin_single_instance::init(|app, _, _| show_main_window(app)))
+        .manage(desktop_update::DesktopUpdate::default())
         .manage(bundled_api::BundledApi::default());
 
     builder
@@ -56,7 +59,11 @@ fn main() {
                 .show_menu_on_left_click(false)
                 .on_menu_event(|app, event| match event.id.as_ref() {
                     "open" => show_main_window(app),
-                    "quit" => app.exit(0),
+                    "quit" => {
+                        #[cfg(all(windows, not(debug_assertions)))]
+                        desktop_update::install_on_exit(app);
+                        app.exit(0);
+                    }
                     _ => {}
                 })
                 .on_tray_icon_event(|tray, event| {
@@ -68,6 +75,11 @@ fn main() {
                 tray = tray.icon(icon.clone());
             }
             tray.build(app)?;
+            #[cfg(all(windows, not(debug_assertions)))]
+            if app.config().plugins.0.contains_key("updater") {
+                app.handle().plugin(tauri_plugin_updater::Builder::new().build())?;
+                desktop_update::start(app.handle().clone());
+            }
             Ok(())
         })
         .on_window_event(|window, event| {
