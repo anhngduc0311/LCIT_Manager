@@ -153,6 +153,18 @@ npm.cmd run desktop:build
 
 Nếu đổi địa chỉ API, sao chép `apps/desktop/.env.example` sang `apps/desktop/.env.local` và đặt `NEXT_PUBLIC_API_URL` trước khi build. Cập nhật `API_CORS_ORIGINS` nếu đổi origin desktop và cập nhật `connect-src` trong cấu hình Tauri nếu dùng một cổng HTTP phát triển khác. `DATABASE_URL` thuộc cấu hình API.
 
+### Phát hành bản Windows dùng Neon
+
+Từ phiên bản 0.1.1, ứng dụng kiểm tra bản mới khi mở và mỗi giờ trong lúc chạy. Sau khi tải và xác minh chữ ký, ứng dụng cài bản cập nhật khi người dùng chọn **Thoát** ở khay hệ thống.
+
+Mỗi lần phát hành, tăng phiên bản trong `apps/desktop/src-tauri/tauri.conf.json` và `apps/desktop/src-tauri/Cargo.toml`, rồi chạy lệnh sau tại thư mục gốc. Lệnh build bộ cài, ký và phát hành qua SSH. Windows có thể hỏi xác thực SSH khi tải lên và khi kích hoạt bản mới.
+
+```powershell
+.\ops\desktop\release.ps1 -Publish
+```
+
+Khóa ký mặc định nằm ở `%USERPROFILE%\.codex\private\lcit-desktop-updater\lcit-manager.key`. Giữ bản sao bảo mật của khóa để các máy đã cài tiếp tục nhận cập nhật. Manifest tại `https://api.akatruyen.com/desktop-updates/latest.json` chỉ đổi sau khi bộ cài mới đã tải lên đầy đủ và khớp SHA-256.
+
 ## Dữ liệu kiểm thử tổng hợp
 
 - [catalog.json](fixtures/catalog.json) có hai đơn vị, hai trung tâm dữ liệu và hai máy chủ dùng cùng IP nội bộ ở hai phạm vi mạng khác nhau.

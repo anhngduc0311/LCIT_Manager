@@ -12,7 +12,7 @@ const matches = (code) => (error) => error instanceof ApiError && error.getRespo
 
 async function fixture(t, options = {}) {
   const files = new Map([['/home/deploy/hello.txt', Buffer.from('Xin chào LCIT\n')], ['/home/deploy/empty.txt', Buffer.alloc(0)]]);
-  const sockets = new Set(); let passwords = 0, opens = 0; const answers = [];
+  const sockets = new Set(); let passwords = 0, opens = 0, sftpChannels = 0; const answers = [];
   const server = new Server({ hostKeys: [hostKey] }, (connection) => {
     sockets.add(connection); connection.on('error', () => {}); connection.on('close', () => sockets.delete(connection));
     connection.on('authentication', (ctx) => {
@@ -30,7 +30,12 @@ async function fixture(t, options = {}) {
       else ctx.reject(['password']);
     });
     connection.on('ready', () => connection.on('session', (accept) => {
-      accept().on('sftp', (acceptSftp, rejectSftp) => {
+      accept().on('pty', (acceptPty) => acceptPty()).on('shell', (acceptShell) => {
+        const stream = acceptShell();
+        stream.write('Terminal sẵn sàng\r\n');
+        stream.on('data', (data) => stream.write(data));
+      }).on('sftp', (acceptSftp, rejectSftp) => {
+        sftpChannels++;
         if (options.rejectSftp) { rejectSftp(); return; }
         const sftp = acceptSftp(); const handles = new Map(); let next = 0;
         const handle = (entry) => { const id = Buffer.from(String(++next)); handles.set(id.toString(), entry); return id; };
@@ -63,6 +68,7 @@ async function fixture(t, options = {}) {
           const bytes = Buffer.alloc(Math.max(old.length, offset + data.length)); old.copy(bytes); data.copy(bytes, offset); files.set(path, bytes);
           sftp.status(id, STATUS.OK);
         });
+        sftp.on('REMOVE', (id, path) => sftp.status(id, files.delete(path) ? STATUS.OK : STATUS.NO_SUCH_FILE));
         sftp.on('CLOSE', (id, key) => { handles.delete(key.toString()); sftp.status(id, STATUS.OK); });
       });
     }));
@@ -71,7 +77,7 @@ async function fixture(t, options = {}) {
   const endpoint = randomUUID();
   let permitted = true;
   const destination = { endpointId: endpoint, protocol: 'ssh', host: '127.0.0.1', port: server.address().port };
-  const access = { async launch(request, id, body) {
+  const access = { recheck(request, id) { return this.launch(request, id, {}); }, async launch(request, id, body) {
     assert.equal(id, endpoint); assert.deepEqual(body, {});
     if (!permitted) throw new ApiError(403, 'CONNECTION_GRANT_REQUIRED', 'Revoked.');
     return { ...destination };
@@ -80,14 +86,14 @@ async function fixture(t, options = {}) {
   t.after(async () => { await service.onModuleDestroy(); for (const socket of sockets) socket.end(); await new Promise((resolve) => server.close(resolve)); });
   const request = { actor: { id: randomUUID() }, sessionHash: 'session-one' };
   const credentials = { username: 'deploy', password: 'test-secret' };
-  async function open() {
-    const challenge = await service.open(request, endpoint, { username: 'deploy', password: '' });
+  async function open(sshFirst = false) {
+    const challenge = await service.open(request, endpoint, { username: 'deploy', password: '' }, sshFirst);
     assert.equal(challenge.requiresVerification, true);
-    const session = await service.open(request, endpoint, { ...credentials, fingerprint: challenge.fingerprint });
+    const session = await service.open(request, endpoint, { ...credentials, fingerprint: challenge.fingerprint }, sshFirst);
     assert.equal(session.requiresVerification, false);
     return session;
   }
-  return { service, request, endpoint, credentials, open, files, destination, answers, revoke: () => { permitted = false; }, passwords: () => passwords, opens: () => opens };
+  return { service, request, endpoint, credentials, open, files, destination, answers, revoke: () => { permitted = false; }, passwords: () => passwords, opens: () => opens, sftpChannels: () => sftpChannels };
 }
 
 test('SFTP: host-key challenge authenticates only after explicit pin, rejects a different pin and bad credentials', { timeout: 20000 }, async (t) => {
@@ -106,6 +112,42 @@ test('SFTP: keyboard-interactive password authentication works when plain passwo
   assert.deepEqual(f.answers, [['test-secret']]);
   assert.equal((await f.service.list(f.request, session.id, '/home/deploy')).items.length, 2);
   await f.service.close(f.request, session.id);
+});
+
+test('SSH and SFTP use one verified login and recheck ownership and permission on terminal I/O', { timeout: 20000 }, async (t) => {
+  const f = await fixture(t);
+  const session = await f.open(true);
+  await f.service.openShell(f.request, session.id, { cols: 80, rows: 24 });
+  const read = async () => Buffer.from((await f.service.readShell(f.request, session.id)).data, 'base64').toString();
+  assert.equal(await read(), 'Terminal sẵn sàng\r\n');
+  await f.service.writeShell(f.request, session.id, { data: 'Xin chào\r', cols: 100, rows: 30 });
+  assert.equal(await read(), 'Xin chào\r');
+  assert.equal(f.sftpChannels(), 0);
+  const files = await f.service.openFiles(f.request, session.id);
+  assert.equal(files.path, '/home/deploy'); assert.equal(files.items.length, 2);
+  assert.equal((await f.service.openFiles(f.request, session.id)).items.length, 2);
+  assert.equal(f.sftpChannels(), 1);
+  await assert.rejects(f.service.upload(f.request, session.id, '/home/deploy/hello.txt', Buffer.from('overwrite')), matches('SFTP_FILE_OPERATION_FAILED'));
+  await f.service.writeShell(f.request, session.id, { data: 'Vẫn kết nối' });
+  assert.equal(await read(), 'Vẫn kết nối');
+  assert.equal(f.passwords(), 1);
+  await assert.rejects(f.service.readShell({ ...f.request, sessionHash: 'other-login' }, session.id), matches('SFTP_SESSION_CLOSED'));
+  f.revoke();
+  await assert.rejects(f.service.writeShell(f.request, session.id, { data: 'blocked' }), matches('CONNECTION_GRANT_REQUIRED'));
+  await assert.rejects(f.service.readShell(f.request, session.id), matches('SFTP_SESSION_CLOSED'));
+});
+
+test('Opening SSH works when the server has disabled SFTP', { timeout: 20000 }, async (t) => {
+  const f = await fixture(t, { rejectSftp: true });
+  const session = await f.open(true);
+  await f.service.openShell(f.request, session.id, { cols: 80, rows: 24 });
+  assert.equal(f.sftpChannels(), 0);
+  await assert.rejects(f.service.openFiles(f.request, session.id), matches('SFTP_SUBSYSTEM_FAILED'));
+  await f.service.writeShell(f.request, session.id, { data: 'SSH tiếp tục\r' });
+  const initial = await f.service.readShell(f.request, session.id);
+  let output = Buffer.from(initial.data, 'base64').toString();
+  if (!output.includes('SSH tiếp tục')) output += Buffer.from((await f.service.readShell(f.request, session.id)).data, 'base64').toString();
+  assert.match(output, /SSH tiếp tục/);
 });
 
 test('SFTP: password is not reused for OTP prompts or prompts that display typed answers', { timeout: 20000 }, async (t) => {
@@ -184,7 +226,7 @@ test('SFTP HTTP: guarded routes, raw upload, binary download and session cleanup
   t.after(() => app.close());
   const base = `http://127.0.0.1:${app.getHttpServer().address().port}/api/v1`;
   const owner = { Authorization: `Bearer ${ownerToken}` };
-  const openPath = `${base}/access-endpoints/${f.endpoint}/sftp/sessions`;
+  const openPath = `${base}/access-endpoints/${f.endpoint}/ssh/sessions`;
   assert.equal((await fetch(openPath, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })).status, 401);
   const open = (body) => fetch(openPath, { method: 'POST', headers: { ...owner, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   const challengeResponse = await open({ username: 'deploy', password: '' }); assert.equal(challengeResponse.status, 200);
@@ -192,6 +234,20 @@ test('SFTP HTTP: guarded routes, raw upload, binary download and session cleanup
   const connected = await open({ ...f.credentials, fingerprint: challenge.fingerprint }); assert.equal(connected.status, 200);
   const session = await connected.json();
   const root = `${base}/sftp/sessions/${session.id}`;
+  const shell = `${root}/shell`;
+  const shellPost = (url, body) => fetch(url, { method: 'POST', headers: { ...owner, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  assert.equal((await shellPost(shell, { cols: 80, rows: 24 })).status, 204);
+  assert.equal((await fetch(shell, { headers: { Authorization: `Bearer ${otherToken}` } })).status, 404);
+  const output = await fetch(shell, { headers: owner });
+  assert.equal(output.status, 200);
+  assert.equal(Buffer.from((await output.json()).data, 'base64').toString(), 'Terminal sẵn sàng\r\n');
+  assert.equal((await shellPost(`${shell}/input`, { data: 'test\r' })).status, 204);
+  assert.equal(Buffer.from((await (await fetch(shell, { headers: owner })).json()).data, 'base64').toString(), 'test\r');
+  assert.equal(f.sftpChannels(), 0);
+  const filesOpened = await shellPost(`${root}/files/open`, {});
+  assert.equal(filesOpened.status, 200);
+  assert.equal((await filesOpened.json()).items.length, 2);
+  assert.equal(f.passwords(), 1);
   assert.equal((await fetch(`${root}/files?path=/home/deploy`, { headers: { Authorization: `Bearer ${otherToken}` } })).status, 404);
   const listing = await fetch(`${root}/files?path=/home/deploy`, { headers: owner });
   assert.equal(listing.status, 200); assert.equal((await listing.json()).items.length, 2);
@@ -205,6 +261,15 @@ test('SFTP HTTP: guarded routes, raw upload, binary download and session cleanup
     method: 'POST', headers: { ...owner, 'Content-Type': 'application/octet-stream' }, body: Buffer.alloc(SFTP_MAX_BYTES + 1),
   });
   assert.equal(oversized.status, 413); assert.equal(f.files.has('/home/deploy/too-large.bin'), false);
+  const deleteUrl = `${root}/files?path=${path}`;
+  assert.equal((await fetch(deleteUrl, { method: 'DELETE', headers: { Authorization: `Bearer ${otherToken}` } })).status, 404);
+  assert.equal(f.files.has('/home/deploy/kiểm tra.bin'), true);
+  assert.equal((await fetch(`${root}/files?path=/home/deploy`, { method: 'DELETE', headers: owner })).status, 400);
+  assert.equal((await fetch(deleteUrl, { method: 'DELETE', headers: owner })).status, 204);
+  assert.equal(f.files.has('/home/deploy/kiểm tra.bin'), false);
+  assert.equal((await fetch(deleteUrl, { method: 'DELETE', headers: owner })).status, 400);
+  assert.equal((await fetch(`${root}/files?path=/home/deploy`, { headers: owner })).status, 200);
   assert.equal((await fetch(root, { method: 'DELETE', headers: owner })).status, 204);
+  assert.equal((await fetch(shell, { headers: owner })).status, 404);
   assert.equal((await fetch(`${root}/files?path=/home/deploy`, { headers: owner })).status, 404);
 });

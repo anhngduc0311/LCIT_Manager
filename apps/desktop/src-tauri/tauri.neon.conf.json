@@ -1,0 +1,15 @@
+{
+  "bundle": {
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDQyRjBBOTVGNjlFNTAwOUUKUldTZUFPVnBYNm53UXE1U05ZcFo5ZUlJZ1YyN2Z2c2lnZzFmdDZLUVJrRTR5RTExczhINTdzNUsK",
+      "endpoints": ["https://api.akatruyen.com/desktop-updates/latest.json"],
+      "requireSignedVersion": true,
+      "windows": {
+        "installMode": "passive"
+      }
+    }
+  }
+}

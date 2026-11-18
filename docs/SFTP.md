@@ -1,14 +1,14 @@
 # Truyền tệp SFTP
 
-LCIT Manager dùng `ssh2-sftp-client` trong API Node.js. Terminal tương tác vẫn dùng xterm.js và OpenSSH trên desktop. SFTP là kết nối riêng, không dùng lại phiên terminal.
+LCIT Manager xác thực SSH qua API Node.js. Terminal dùng xterm.js. Khi bạn chọn **Mở SFTP**, ứng dụng mở kênh truyền tệp trên kết nối SSH đang chạy. Tùy chọn **Mở SSH riêng** dùng OpenSSH trên máy Windows và hỗ trợ cách đăng nhập hiện có của OpenSSH.
 
 ## Sử dụng
 
-1. Mở chi tiết máy chủ, tại điểm truy cập SSH đã được cấp quyền chọn **Truyền tệp SFTP**.
-2. Nhập tên đăng nhập, chọn **Kiểm tra máy chủ**. Lượt này chỉ lấy dấu vân tay khóa SSH, chưa gửi mật khẩu để đăng nhập máy đích.
-3. Đối chiếu dấu vân tay `SHA256:…` với thông tin đáng tin cậy do quản trị máy đích cung cấp. Nhập mật khẩu rồi chọn **Xác nhận khóa và đăng nhập**.
-4. Mở thư mục, nhập đường dẫn tuyệt đối hoặc chọn **Thư mục cha**. Dùng **Tải lên tệp** và **Tải xuống** để truyền từng tệp tối đa 20 MiB. Tệp tải lên phải có tên mới; ứng dụng không ghi đè tệp có sẵn. Liên kết tượng trưng được hiển thị nhưng không có nút mở/tải xuống.
-5. Chọn **Đóng SFTP** để ngắt kết nối. Khi rời màn hình, giao diện gửi yêu cầu đóng. API cũng dọn phiên sau 5 phút không hoạt động, tối đa 1 giờ tồn tại, hoặc khi dừng API. Khi trình duyệt mất mạng/đóng đột ngột hoặc phiên đăng nhập hết hạn, cơ chế dọn phiên là dự phòng.
+1. Mở chi tiết máy chủ và chọn **Kết nối** tại điểm truy cập SSH đã được cấp quyền. Để chỉ truyền tệp, chọn **Truyền tệp SFTP** tại điểm truy cập.
+2. Nhập tên đăng nhập và chọn **Kiểm tra máy chủ** để lấy dấu vân tay khóa SSH trước khi đăng nhập.
+3. Đối chiếu dấu vân tay `SHA256:…` với thông tin do quản trị máy đích cung cấp. Nhập mật khẩu và chọn **Xác nhận khóa và đăng nhập**. Sau khi SSH kết nối, bấm **Mở SFTP** cạnh **Đóng terminal** để mở trình quản lý tệp bên dưới bằng cùng phiên.
+4. Chọn thư mục trên máy bạn ở bên trái. Ở bên phải, mở thư mục máy chủ bằng cách chọn tên, nhập đường dẫn tuyệt đối hoặc chọn **Thư mục cha**. Chọn tệp ở một bên rồi dùng **Tải lên máy chủ** hoặc **Tải xuống máy bạn**. Để xóa vĩnh viễn một tệp trên máy chủ, chọn tệp đó, bấm **Xóa tệp** và xác nhận. Giới hạn tải lên và tải xuống là 20 MiB mỗi tệp. Tệp tải lên phải có tên mới. Liên kết tượng trưng chỉ hiển thị trong danh sách.
+5. Khi dùng chung, chọn **Đóng terminal** để ngắt cả hai kênh hoặc **Ẩn SFTP** để tạm ẩn khung truyền tệp. Khi chỉ truyền tệp, chọn **Đóng SFTP** để ngắt kết nối. Khi rời màn hình, giao diện gửi yêu cầu đóng. API cũng dọn phiên sau 5 phút không hoạt động, tối đa 1 giờ tồn tại, hoặc khi dừng API. Khi trình duyệt mất mạng/đóng đột ngột hoặc phiên đăng nhập hết hạn, cơ chế dọn phiên là dự phòng.
 
 Máy **chạy API** cần có VPN/đường mạng tới host:cổng đã lưu và máy đích cần hỗ trợ SFTP. Chức năng này dùng được cả trong desktop và trình duyệt. Với API đặt trên máy khác, dùng HTTPS vì thông tin đăng nhập SFTP được gửi tới API; không triển khai API qua HTTP trên mạng không tin cậy.
 
@@ -29,7 +29,13 @@ Các đường dẫn dưới đây thuộc `/api/v1`, yêu cầu Bearer token LC
 | Phương thức | Đường dẫn | Dữ liệu |
 | --- | --- | --- |
 | POST | `/access-endpoints/:id/sftp/sessions` | JSON `{ username, password, fingerprint? }`; thiếu fingerprint trả `{ requiresVerification: true, fingerprint, host, port }`, xác nhận đúng trả `{ requiresVerification: false, id, path, host, port, fingerprint }` |
+| POST | `/access-endpoints/:id/ssh/sessions` | Cùng thông tin đăng nhập và xác minh khóa. Mở kết nối SSH, chưa yêu cầu kênh SFTP |
+| POST | `/sftp/sessions/:id/files/open` | Mở kênh SFTP trên kết nối đã xác thực và trả danh sách thư mục ban đầu |
 | GET | `/sftp/sessions/:id/files?path=…` | Danh sách thư mục từ xa |
+| DELETE | `/sftp/sessions/:id/files?path=…` | Xóa một tệp thông thường trên máy chủ |
+| POST | `/sftp/sessions/:id/shell` | Mở terminal trên kết nối đã xác thực với `{ cols, rows }` |
+| GET | `/sftp/sessions/:id/shell` | Đọc đầu ra terminal dưới dạng `{ data, ended }`, dữ liệu mã hóa Base64 |
+| POST | `/sftp/sessions/:id/shell/input` | Gửi `{ data }` hoặc cập nhật kích thước bằng `{ cols, rows }` |
 | POST | `/sftp/sessions/:id/upload?path=…` | Body `application/octet-stream`, tối đa 20 MiB, tạo tệp mới |
 | GET | `/sftp/sessions/:id/download?path=…` | Tệp nhị phân và `Content-Disposition` |
 | DELETE | `/sftp/sessions/:id` | Đóng phiên |

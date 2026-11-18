@@ -32,6 +32,14 @@ export class AccessLaunchService {
         action: 'access.launch.authorize', targetType: 'access_endpoints', outcome: 'denied', requestId: requestId(request) }));
       throw error;
     }
+    return this.authorize(request, id, true);
+  }
+
+  recheck(request: SessionRequest, id: string) {
+    return this.authorize(request, id, false);
+  }
+
+  private async authorize(request: SessionRequest, id: string, auditSuccess: boolean) {
     const decision = await this.db.transaction(async (client) => {
       const actor = await currentActor(client, request);
       let error: ApiError | undefined;
@@ -60,7 +68,7 @@ export class AccessLaunchService {
           }
         }
       }
-      await recordAudit(client, { actorId: actor.id, action: 'access.launch.authorize', targetType: 'access_endpoints',
+      if (auditSuccess || outcome !== 'success') await recordAudit(client, { actorId: actor.id, action: 'access.launch.authorize', targetType: 'access_endpoints',
         targetId: id, relatedId: endpoint?.serverId, outcome, requestId: requestId(request) });
       return { error, endpoint, authorizedAt: new Date().toISOString() };
     });
