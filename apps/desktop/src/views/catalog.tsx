@@ -12,11 +12,18 @@ import loadingStyles from './catalog-loading.module.css';
 const itemTitle = (row: RecordItem) => String(row.name ?? row.hostname ?? row.displayName ?? row.username ?? row.id);
 const asIds = (value: unknown) => Array.isArray(value) ? value as string[] : [];
 
-export function Pager({ page, pageSize, total, change }: { page: number; pageSize: number; total: number; change: (page: number) => void }) {
+export function Pager({ page, pageSize, total, change, disabled = false }: { page: number; pageSize: number; total: number; change: (page: number) => void; disabled?: boolean }) {
   const last = Math.max(1, Math.ceil(total / pageSize));
+  const pages = last <= 5
+    ? Array.from({ length: last }, (_, index) => index + 1)
+    : [...new Set([1, page - 1, page, page + 1, last])].filter((value) => value >= 1 && value <= last);
   return <div className="pager"><span>{total} mục · Trang {page}/{last}</span><div className="actions">
-    <button type="button" className="secondary" disabled={page <= 1} onClick={() => change(page - 1)}>Trước</button>
-    <button type="button" className="secondary" disabled={page >= last} onClick={() => change(page + 1)}>Sau</button>
+    <button type="button" className="secondary" disabled={disabled || page <= 1} onClick={() => change(Math.min(page - 1, last))}>Trước</button>
+    {pages.map((value, index) => <Fragment key={value}>
+      {index > 0 && value - pages[index - 1] > 1 && <span aria-hidden="true">…</span>}
+      <button type="button" className={value === page ? undefined : 'secondary'} aria-label={`Trang ${value}`} aria-current={value === page ? 'page' : undefined} disabled={disabled} onClick={value === page ? undefined : () => change(value)}>{value}</button>
+    </Fragment>)}
+    <button type="button" className="secondary" disabled={disabled || page >= last} onClick={() => change(page + 1)}>Sau</button>
   </div></div>;
 }
 
@@ -181,7 +188,7 @@ export function Catalog({ kind, api, role, actorId, open }: { kind: Kind; api: R
             })}</tbody>
           </table>
         </div>}
-      {accountPage && <Pager {...accountPage} change={(page) => { if (!removing) { resetAccountActions(); setPage(page); } }} />}
+      {accountPage && <Pager {...accountPage} disabled={removing} change={(page) => { resetAccountActions(); setPage(page); }} />}
     </div>}
   </section>;
 

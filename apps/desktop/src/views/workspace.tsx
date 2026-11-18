@@ -1,4 +1,5 @@
 'use client';
+import { useState } from 'react';
 import { useNotifications } from '../controllers/use-alerts';
 import { useVietnameseValidation } from '../controllers/use-validation-messages';
 import { toolViews, ToolView, useWorkspace } from '../controllers/use-workspace';
@@ -31,6 +32,8 @@ export function Workspace() {
 
 function SignedIn({ workspace, session }: { workspace: ReturnType<typeof useWorkspace>; session: NonNullable<ReturnType<typeof useWorkspace>['session']> }) {
  const { current: requested, nav, loggingOut, api, open, navigate, logout } = workspace;
+ const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+ const sidebarAction = sidebarCollapsed ? 'Mở rộng thanh bên' : 'Thu gọn thanh bên';
  const notifications = useNotifications(api, session.user.id);
  const role = session.user.role;
  const visibleTools = toolViews.filter((view) => !tools[view].adminOnly || role === 'admin');
@@ -39,15 +42,25 @@ function SignedIn({ workspace, session }: { workspace: ReturnType<typeof useWork
  const tool = (toolViews as readonly string[]).includes(current.kind) ? current.kind as ToolView : undefined;
  const title = current.kind === 'search' ? 'Tra cứu hệ thống' : current.kind === 'health' ? 'Kết nối hệ thống' : tool ? tools[tool].title : catalogs[current.kind as Kind].title;
  const unread = notifications.unreadCount;
- return <div className="workspace"><aside className="sidebar">
-  <div className="brand"><span className="brand-mark" aria-hidden="true">L</span><div>LCIT<span className="brand-subtitle">MANAGER</span></div></div>
+ return <div className={`workspace${sidebarCollapsed ? ' sidebar-collapsed' : ''}`}><aside className="sidebar">
+  <div className="sidebar-header">
+   <div className="brand"><span className="brand-mark" aria-hidden="true">L</span><div className="sidebar-brand-text">LCIT<span className="brand-subtitle">MANAGER</span></div></div>
+   <button type="button" className="sidebar-toggle" aria-label={sidebarAction} title={sidebarAction} aria-expanded={!sidebarCollapsed} aria-controls="workspace-navigation" onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}>
+    <Icon name={sidebarCollapsed ? 'sidebar-expand' : 'sidebar-collapse'} size={18} />
+   </button>
+  </div>
   <p className="nav-label">KHÔNG GIAN LÀM VIỆC</p>
-  <nav aria-label="Điều hướng chính">
-   <button aria-current={current.kind === 'search' ? 'page' : undefined} onClick={() => navigate({ kind: 'search' })}><Icon name="search" />Tra cứu</button>
-   {visibleTools.map((view) => <button key={view} aria-current={current.kind === view ? 'page' : undefined} onClick={() => navigate({ kind: view })}>
-    <Icon name={tools[view].icon} />{tools[view].title}{view === 'alerts' && unread > 0 && <strong aria-label={`${unread} chưa đọc`}> ({unread})</strong>}</button>)}
-   {nav.map((kind) => <button key={kind} aria-current={current.kind === kind ? 'page' : undefined} onClick={() => navigate({ kind })}><Icon name={kind} />{catalogs[kind].title}</button>)}
-   <button className="health-nav" aria-current={current.kind === 'health' ? 'page' : undefined} onClick={() => navigate({ kind: 'health' })}><Icon name="health" />Kết nối hệ thống</button>
+  <nav id="workspace-navigation" aria-label="Điều hướng chính">
+   <button aria-label="Tra cứu" title={sidebarCollapsed ? 'Tra cứu' : undefined} aria-current={current.kind === 'search' ? 'page' : undefined} onClick={() => navigate({ kind: 'search' })}><Icon name="search" /><span className="sidebar-nav-text">Tra cứu</span></button>
+   {visibleTools.map((view) => {
+    const { title, icon } = tools[view];
+    const hasUnread = view === 'alerts' && unread > 0;
+    const label = hasUnread ? `${title} (${unread} chưa đọc)` : title;
+    return <button key={view} aria-label={label} title={sidebarCollapsed ? label : undefined} aria-current={current.kind === view ? 'page' : undefined} onClick={() => navigate({ kind: view })}>
+     <Icon name={icon} /><span className="sidebar-nav-text">{title}</span>{hasUnread && <strong className="sidebar-unread">({unread})</strong>}
+    </button>;
+   })}
+   {nav.map((kind) => <button key={kind} aria-label={catalogs[kind].title} title={sidebarCollapsed ? catalogs[kind].title : undefined} aria-current={current.kind === kind ? 'page' : undefined} onClick={() => navigate({ kind })}><Icon name={kind} /><span className="sidebar-nav-text">{catalogs[kind].title}</span></button>)}
   </nav>
   <div className="sidebar-footer"><Icon name="shield" /><div>Quản lý tập trung<span>Hạ tầng & ứng dụng</span></div></div>
  </aside><div className="work-area"><header className="account">

@@ -26,7 +26,7 @@ export function useInventory(api: RequestApi, filter: ReportFilter) {
   // A changed filter starts again from page 1.
   const [lastFilter, setLastFilter] = useState(filter);
   if (lastFilter !== filter) { setLastFilter(filter); setPage(1); }
-  const result = useRemote<InventoryPage>(api, `/reports/inventory${filterQuery(filter, { page, pageSize: 20 })}`, revision);
+  const result = useRemote<InventoryPage>(api, `/reports/inventory${filterQuery(filter, { page, pageSize: 10 })}`, revision);
 
   async function exportExcel() {
     if (exporting) return;

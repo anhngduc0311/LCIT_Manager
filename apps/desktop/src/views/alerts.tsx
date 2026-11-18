@@ -1,4 +1,5 @@
 import { useAlerts, useNotifications } from '../controllers/use-alerts';
+import { useLocalPage } from '../controllers/use-local-page';
 import { RequestApi } from '../models/api';
 import { Alert, AlertKind, describeAlert, kindText, sourceText } from '../models/alerts';
 import { Kind } from '../models/catalog';
@@ -34,6 +35,7 @@ export function AlertsView({ api, notifications, open }: {
 }) {
   const { result, kind, changeKind, setPage, reload } = useAlerts(api);
   const { unread, unreadCount } = notifications;
+  const unreadPage = useLocalPage(unread ?? [], 20);
   return <section className="panel"><div className="section-title"><div><p className="eyebrow">GIÁM SÁT</p><h1>Cảnh báo</h1>
     <p className="page-description">Hạn tên miền và SSL theo mốc 90, 30, 14, 7 ngày, cùng gián đoạn và phục hồi DNS/TLS quan sát từ máy chạy lịch, trong phạm vi của bạn.
       Đóng cửa sổ thì ứng dụng chạy tiếp dưới khay Windows và vẫn hiện thông báo mới; chọn “Thoát” trong menu khay để tắt hẳn.
@@ -45,10 +47,11 @@ export function AlertsView({ api, notifications, open }: {
       {notifications.error && <p className="error" role="alert">{notifications.error}</p>}
       {!unread && !notifications.error && <p role="status">Đang tải thông báo…</p>}
       {unread && (unread.length === 0 ? <p className="muted">Không có thông báo mới.</p> :
-        <ul className="rows">{unread.map((item) => <li key={item.id}>
+        <ul className="rows">{unreadPage.items.map((item) => <li key={item.id}>
           <div><AlertLine alert={item.alert} open={open} /><span className={styles.small}>{dateTime.format(new Date(item.createdAt))}</span></div>
           <div className="actions"><AlertBadge alert={item.alert} />
             <button className="secondary" onClick={() => void notifications.setRead(item, true)}>Đã đọc</button></div></li>)}</ul>)}
+      {unreadPage.total > unreadPage.pageSize && <Pager {...unreadPage} />}
     </div>
 
     <div className="subpanel"><div className="section-title"><h3>Lịch sử cảnh báo</h3><div className="actions">
@@ -58,12 +61,12 @@ export function AlertsView({ api, notifications, open }: {
     </div></div>
       {!result && <p role="status">Đang tải cảnh báo…</p>}
       {result?.error && <p className="error" role="alert">{result.error}</p>}
-      {result?.data && (result.data.items.length === 0 ? <p className="muted">Chưa có cảnh báo.</p> : <>
+      {result?.data && <>{result.data.items.length === 0 ? <p className="muted">{result.data.total === 0 ? 'Chưa có cảnh báo.' : 'Chưa có cảnh báo ở trang này.'}</p> :
         <ul className="rows">{result.data.items.map((alert) => <li key={alert.id}>
           <div><AlertLine alert={alert} open={open} />
             <span className={styles.small}>{sourceText[alert.source]} · {dateTime.format(new Date(alert.createdAt))}</span></div>
-          <AlertBadge alert={alert} /></li>)}</ul>
-        <Pager {...result.data} change={setPage} /></>)}
+          <AlertBadge alert={alert} /></li>)}</ul>}
+        <Pager {...result.data} change={setPage} /></>}
     </div>
   </section>;
 }
