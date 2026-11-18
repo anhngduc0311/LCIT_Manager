@@ -1,4 +1,16 @@
+import { invoke, isTauri } from '@tauri-apps/api/core';
+
 export const apiUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:4000').replace(/\/+$/, '');
+
+export async function ensureLocalApi() {
+  if (isTauri() && (apiUrl === 'http://127.0.0.1:4000' || apiUrl === 'http://localhost:4000')) {
+    try {
+      await invoke('ensure_local_api');
+    } catch {
+      throw new ApiFailure(0, 'OFFLINE', 'Không khởi động được API tích hợp. Hãy kiểm tra nhật ký api.log.');
+    }
+  }
+}
 
 export type Role = 'admin' | 'leader' | 'specialist';
 export interface User { id: string; username: string; displayName: string; role: Role }
@@ -108,6 +120,8 @@ export async function requestApi<T>(path: string, { method = 'GET', body, signal
 }
 
 export async function checkHealth(signal: AbortSignal) {
+  await ensureLocalApi();
+  signal.throwIfAborted();
   const response = await fetch(`${apiUrl}/health/ready`, {
     cache: 'no-store', signal: AbortSignal.any([signal, AbortSignal.timeout(8000)]),
   });
