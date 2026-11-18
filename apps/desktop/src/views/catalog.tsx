@@ -8,6 +8,7 @@ import { Attachments, Permissions } from './attachments';
 import { catalogs, childGroups, Field, roleNames } from './catalog-config';
 import accountStyles from './accounts.module.css';
 import loadingStyles from './catalog-loading.module.css';
+import { ImportsView } from './imports';
 
 const itemTitle = (row: RecordItem) => String(row.name ?? row.hostname ?? row.displayName ?? row.username ?? row.id);
 const asIds = (value: unknown) => Array.isArray(value) ? value as string[] : [];
@@ -101,6 +102,7 @@ function ReloadButton({ loading, disabled, reload }: { loading: boolean; disable
 }
 
 export function Catalog({ kind, api, role, actorId, open }: { kind: Kind; api: RequestApi; role: Role; actorId: string; open: (kind: Kind, id: string) => void }) {
+  const [importing, setImporting] = useState(false);
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState('');
   const [confirming, setConfirming] = useState('');
@@ -109,6 +111,8 @@ export function Catalog({ kind, api, role, actorId, open }: { kind: Kind; api: R
   const manageAccounts = kind === 'users' && role === 'admin';
   const accountPage = listing?.data;
   const loading = !listing;
+
+  if (importing) return <ImportsView api={api} onBack={() => setImporting(false)} />;
 
   function resetAccountActions() {
     setConfirming('');
@@ -186,6 +190,7 @@ export function Catalog({ kind, api, role, actorId, open }: { kind: Kind; api: R
   </section>;
 
   return <section className="panel catalog-panel"><div className="section-title"><div><p className="eyebrow">DANH MỤC HỆ THỐNG</p><h1>{config.title}</h1><p className="page-description">Quản lý và tra cứu thông tin {config.title.toLocaleLowerCase('vi')}.</p></div><div className="actions">
+    {role === 'admin' && ['applications', 'servers', 'domains', 'databases', 'organizations', 'data-centers'].includes(kind) && !creating && <button className="secondary" onClick={() => setImporting(true)}>Nhập Excel</button>}
     {role === 'admin' && !creating && <button onClick={() => setCreating(true)}>Thêm mới</button>}
     <ReloadButton loading={loading} reload={reload} />
   </div></div>

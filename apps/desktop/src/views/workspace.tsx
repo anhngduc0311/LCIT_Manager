@@ -6,7 +6,6 @@ import { Kind } from '../models/catalog';
 import { AlertsView, NotificationBell } from './alerts';
 import { Catalog, Detail } from './catalog';
 import { catalogs, roleNames } from './catalog-config';
-import { ImportsView } from './imports';
 import { DashboardView, ReportsView } from './reports';
 import { Search } from './search';
 import { Health, SignIn } from './sign-in';
@@ -17,7 +16,6 @@ const tools: Record<ToolView, { title: string; icon: string; adminOnly?: boolean
  dashboard: { title: 'Tổng quan', icon: 'dashboard' },
  alerts: { title: 'Cảnh báo', icon: 'alerts' },
  reports: { title: 'Báo cáo', icon: 'reports' },
- imports: { title: 'Nhập Excel', icon: 'imports', adminOnly: true },
 };
 
 export function Workspace() {
@@ -60,7 +58,6 @@ function SignedIn({ workspace, session }: { workspace: ReturnType<typeof useWork
  {current.kind === 'search' ? null : tool === 'dashboard' ? <DashboardView api={api} open={open} /> :
  tool === 'reports' ? <ReportsView api={api} open={open} /> :
  tool === 'alerts' ? <AlertsView api={api} notifications={notifications} open={open} /> :
- tool === 'imports' ? <ImportsView api={api} /> :
  current.kind === 'health' ? <section className={`panel ${styles.connectionPanel}`}><p className="eyebrow">HỆ THỐNG</p><h1>Kết nối hệ thống</h1><p className="page-description">Kiểm tra kết nối đến dịch vụ và cơ sở dữ liệu.</p><Health /></section> :
  current.id ? <Detail key={`${current.kind}:${current.id}`} kind={current.kind as Kind} id={current.id} api={api} role={role} actorId={session.user.id} open={open} back={() => navigate({ kind: current.kind as Kind })} /> :
  <Catalog key={current.kind} kind={current.kind as Kind} api={api} role={role} actorId={session.user.id} open={open} />}</main>

@@ -20,14 +20,14 @@ function Matches({ row }: { row: PreviewRow }) {
   return <span className={styles.small}>Đối chiếu: {items.join('; ')}</span>;
 }
 
-export function ImportsView({ api }: { api: RequestApi }) {
+export function ImportsView({ api, onBack }: { api: RequestApi; onBack?: () => void }) {
   const wizard = useImportWizard(api);
   const input = useRef<HTMLInputElement>(null);
   const { batch, busy, error, step } = wizard;
   const visible = wizard.rows.filter((row) => !wizard.statusFilter || row.status === wizard.statusFilter);
   const columnCount = Math.max(1, ...(wizard.selectedSheet?.sampleRows.map((row) => row.cells.length) ?? [1]));
 
-  return <section className="panel" aria-busy={Boolean(busy)}><div className="section-title"><div><p className="eyebrow">NHẬP DỮ LIỆU</p><h1>Nhập Excel</h1>
+  return <section className="panel" aria-busy={Boolean(busy)}><div className="section-title"><div>{onBack && <button className="text-button" onClick={onBack}>‹ Danh mục</button>}<p className="eyebrow">NHẬP DỮ LIỆU</p><h1>Nhập Excel</h1>
     <p className="page-description">Xem trước từng dòng, chọn gộp cho bản ghi đã có, rồi xác nhận. Chỉ các dòng được đánh dấu mới được ghi; cả lô ghi trong một transaction.</p></div>
     {batch && <button className="secondary" disabled={Boolean(busy)} onClick={wizard.reset}>Lô mới</button>}</div>
     <ol className="actions" aria-label="Các bước" style={{ listStyle: 'none', padding: 0, margin: '0 0 1rem' }}>
@@ -49,10 +49,7 @@ export function ImportsView({ api }: { api: RequestApi }) {
       <div className={styles.filters}>
         <label>Sheet<select value={wizard.sheet} onChange={(event) => wizard.chooseSheet(event.target.value)}>
           {batch.sheets.map((item) => <option key={item.name} value={item.name}>{item.name} ({item.rowCount} dòng)</option>)}</select></label>
-        <label>Dòng tiêu đề<select value={wizard.headerRow} onChange={(event) => wizard.setHeaderRow(Number(event.target.value))}>
-          {wizard.selectedSheet?.sampleRows.map((row) => <option key={row.rowNumber} value={row.rowNumber}>Dòng {row.rowNumber}</option>)}</select></label>
-      </div>
-      <div className={styles.tableWrap}><table className={styles.table}><thead><tr><th>Trường dữ liệu</th><th>Cột trong tệp</th></tr></thead>
+      </div>      <div className={styles.tableWrap}><table className={styles.table}><thead><tr><th>Trường dữ liệu</th><th>Cột trong tệp</th></tr></thead>
         <tbody>{(Object.entries(importFields) as [ImportField, string][]).map(([field, label]) =>
           <tr key={field}><td>{label}{requiredFields.includes(field) ? <strong className="error"> *</strong> : <span className="muted"> (tùy chọn)</span>}</td>
             <td><select aria-label={`Cột cho ${label}`} value={wizard.columns[field] ?? ''} onChange={(event) => wizard.setColumn(field, event.target.value ? Number(event.target.value) : undefined)}>

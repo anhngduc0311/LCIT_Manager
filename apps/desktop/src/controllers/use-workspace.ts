@@ -3,7 +3,7 @@ import { ApiFailure, requestApi, RequestApi, Session } from '../models/api';
 import { catalogKinds, Kind } from '../models/catalog';
 import { demoRequest, isDemoPath } from '../models/demo-fixtures';
 
-export const toolViews = ['dashboard', 'alerts', 'reports', 'imports'] as const;
+export const toolViews = ['dashboard', 'alerts', 'reports'] as const;
 export type ToolView = typeof toolViews[number];
 type View = { kind: Kind | ToolView | 'search' | 'health'; id?: string };
 function readView(): View {
