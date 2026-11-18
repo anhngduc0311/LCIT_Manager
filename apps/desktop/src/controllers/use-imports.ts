@@ -8,8 +8,7 @@ const maxImportBytes = 10 * 1024 * 1024;
 export function useImportWizard(api: RequestApi) {
   const [batch, setBatch] = useState<UploadedBatch>();
   const [sheet, setSheet] = useState('');
-  // The header row is always the first row of the sheet; columns are matched by header name.
-  const headerRow = 1;
+  const [headerRow, setHeaderRow] = useState(1);
   const [columns, setColumns] = useState<Columns>({});
   const [preview, setPreview] = useState<PreviewResponse>();
   // Latest version on the server; kept when the user goes back to change the mapping.
@@ -31,10 +30,10 @@ export function useImportWizard(api: RequestApi) {
   const missing = requiredFields.filter((field) => !columns[field]);
   const usedTwice = Object.values(columns).filter((column, index, all) => all.indexOf(column) !== index);
 
-  function chooseSheet(name: string, from = batch) {
+  function chooseSheet(name: string, row = 1, from = batch) {
     const target = from?.sheets.find((item) => item.name === name);
-    setSheet(name);
-    setColumns(guessColumns(target?.sampleRows.find((item) => item.rowNumber === headerRow)?.cells ?? []));
+    setSheet(name); setHeaderRow(row);
+    setColumns(guessColumns(target?.sampleRows.find((item) => item.rowNumber === row)?.cells ?? []));
   }
 
   const upload = (file: File) => run('upload', async () => {
@@ -42,7 +41,7 @@ export function useImportWizard(api: RequestApi) {
     if (file.size > maxImportBytes) throw new Error('Tệp vượt quá 10 MiB cho mỗi lô nhập.');
     const created = await api<UploadedBatch>(`/imports?fileName=${encodeURIComponent(file.name)}`, { file });
     setBatch(created); setPreview(undefined); setReceipt(undefined); setVersion(created.previewVersion);
-    if (created.sheets[0]) chooseSheet(created.sheets[0].name, created);
+    if (created.sheets[0]) chooseSheet(created.sheets[0].name, 1, created);
   });
 
   /** Each preview rebuilds decisions from defaults, so every choice to keep is sent again. */
@@ -94,7 +93,7 @@ export function useImportWizard(api: RequestApi) {
   const step = !batch ? 0 : receipt ? 3 : preview ? 2 : 1;
 
   return {
-    step, batch, sheet, chooseSheet, selectedSheet, headers,
+    step, batch, sheet, chooseSheet, selectedSheet, headerRow, setHeaderRow: (row: number) => chooseSheet(sheet, row), headers,
     columns, setColumn: (field: ImportField, column: number | undefined) => setColumns((current) => ({ ...current, [field]: column })),
     missing, usedTwice, preview, rows, counts, selected, toggle, decide, statusFilter, setStatusFilter, receipt,
     upload, runPreview, confirm, reset, busy, error,

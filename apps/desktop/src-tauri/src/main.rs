@@ -4,6 +4,9 @@ mod launch;
 mod ssh_terminal;
 mod rdp;
 
+#[cfg(all(windows, not(debug_assertions)))]
+mod bundled_api;
+
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
@@ -18,12 +21,30 @@ fn show_main_window(app: &AppHandle) {
     }
 }
 
+#[tauri::command]
+async fn ensure_local_api(app: AppHandle) -> Result<(), String> {
+    #[cfg(all(windows, not(debug_assertions)))]
+    return bundled_api::ensure_local_api(app).await;
+
+    #[cfg(not(all(windows, not(debug_assertions))))]
+    {
+        let _ = app;
+        Ok(())
+    }
+}
+
 fn main() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default();
+    #[cfg(all(windows, not(debug_assertions)))]
+    let builder = builder
+        .plugin(tauri_plugin_single_instance::init(|app, _, _| show_main_window(app)))
+        .manage(bundled_api::BundledApi::default());
+
+    builder
         .manage(ssh_terminal::Sessions::default())
         .plugin(tauri_plugin_notification::init())
         .invoke_handler(tauri::generate_handler![launch::launch_access, ssh_terminal::ssh_open, ssh_terminal::ssh_write, ssh_terminal::ssh_resize, ssh_terminal::ssh_close,
-            rdp::rdp_open, rdp::rdp_resize, rdp::rdp_status, rdp::rdp_close])
+            rdp::rdp_open, rdp::rdp_resize, rdp::rdp_status, rdp::rdp_close, ensure_local_api])
         .setup(|app| {
             // T3.5: the app stays in the Windows tray so alert notifications keep arriving after the window is closed.
             let open = MenuItem::with_id(app, "open", "Mở LCIT Manager", true, None::<&str>)?;

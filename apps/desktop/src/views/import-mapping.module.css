@@ -1,0 +1,73 @@
+.card {
+  container: import-mapping / inline-size;
+  min-width: 0;
+  border: 1px solid #dce5ee;
+  border-radius: 14px;
+  background: var(--white);
+}
+
+.source, .body, .footer { padding: 1rem clamp(.85rem, 2.2vw, 1.5rem); }
+
+.source {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(19rem, 1.4fr);
+  gap: .85rem 1.5rem;
+  align-items: center;
+  border-bottom: 1px solid var(--line);
+  border-radius: 13px 13px 0 0;
+  background: #f4f8fb;
+}
+
+.file { display: flex; align-items: center; gap: .75rem; min-width: 0; }
+.file > div { min-width: 0; overflow-wrap: anywhere; }
+.fileIcon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 2.5rem;
+  height: 2.5rem;
+  border-radius: 10px;
+  background: #deeeee;
+  color: #086976;
+}
+.fileLabel { display: block; color: var(--muted); font-size: .76rem; }
+.file strong { font-size: .95rem; }
+.sourceFields, .fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.sourceFields { gap: .65rem; }
+.sourceFields label { color: #465971; font-size: .8rem; }
+.card select { font-size: .86rem; padding: .5rem .65rem; text-overflow: ellipsis; }
+.card select[aria-invalid='true'] { border-color: #c45e5e; }
+
+.heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .4rem .8rem; margin-bottom: .95rem; }
+.heading h2 { font-size: 1rem; }
+.progress { color: #086976; background: #e8f5f4; border-radius: 6px; padding: .2rem .55rem; font-size: .76rem; font-weight: 600; }
+.fields { gap: .8rem 1.4rem; }
+.field { align-content: start; gap: .28rem; font-size: .84rem; }
+.field > span { overflow-wrap: anywhere; }
+.required { color: var(--error); }
+.optional { color: var(--muted); font-size: .72rem; font-weight: 400; margin-inline-start: .5rem; }
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  border-top: 1px solid var(--line);
+  border-radius: 0 0 13px 13px;
+  background: #f9fbfd;
+}
+.feedback { min-width: 0; color: #973030; font-size: .82rem; }
+.footer button { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; gap: .5rem; }
+
+@container import-mapping (max-width: 40rem) {
+  .source { grid-template-columns: minmax(0, 1fr); }
+}
+
+@container import-mapping (max-width: 32rem) {
+  .fields { grid-template-columns: minmax(0, 1fr); }
+  .footer { flex-direction: column; align-items: stretch; }
+  .feedback:empty { display: none; }
+}
+
+@container import-mapping (max-width: 20rem) {
+  .sourceFields { grid-template-columns: minmax(0, 1fr); }
+}
