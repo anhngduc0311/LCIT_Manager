@@ -120,3 +120,9 @@ code { overflow-wrap: anywhere; font-size: .88em; }
 }
 @media (max-width: 480px) { .search-form { flex-direction: column; align-items: stretch; } .search-form > button { justify-content: center; } .rows li { align-items: flex-start; flex-wrap: wrap; } .logout span { display: none; } .search-heading h1 { font-size: 1.75rem; } .search-guide > .section-title > span { display: none; } }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+.rows li.catalog-row { flex-wrap: wrap; }
+.catalog-row .row-end { display: flex; align-items: center; gap: 1rem; margin-left: auto; }
+.catalog-row .row-end > .actions { flex-wrap: nowrap; }
+.catalog-row .row-editor { flex-basis: 100%; }
+
