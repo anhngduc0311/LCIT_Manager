@@ -16,7 +16,7 @@ import styles from './sign-in.module.css';
 const tools: Record<ToolView, { title: string; icon: string; adminOnly?: boolean }> = {
  dashboard: { title: 'Tổng quan', icon: 'dashboard' },
  alerts: { title: 'Cảnh báo', icon: 'alerts' },
- reports: { title: 'Báo cáo', icon: 'reports' },
+ reports: { title: 'Danh sách ứng dụng', icon: 'reports' },
 };
 
 export function Workspace() {

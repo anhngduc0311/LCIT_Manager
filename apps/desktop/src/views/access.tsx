@@ -21,7 +21,6 @@ export function AccessPanel({ api, serverId, actorId, admin, changed }: { api: R
   const { launch, busy, report, terminal, closeTerminal, rdp, closeRdp } = useLaunch(api);
   const [granting, setGranting] = useState('');
   const [error, setError] = useState('');
-  const [sftp, setSftp] = useState<AccessEndpoint>();
   const [filePanel, setFilePanel] = useState<'closed' | 'visible' | 'hidden'>('closed');
   const [nativeSsh, setNativeSsh] = useState(false);
   const [sharedSessionId, setSharedSessionId] = useState<string>();
@@ -71,20 +70,18 @@ export function AccessPanel({ api, serverId, actorId, admin, changed }: { api: R
           {report?.endpointId === endpoint.id && <span className={styles.small} role="status">
             <span className={toneBadge[report.tone]}>{toneIcon[report.tone]}</span> {report.text}{report.reference && <> · Mã đối chiếu <code>{report.reference}</code></>}</span>}</div>
         <div className="actions">
-          {endpoint.protocol === 'ssh' && endpoint.id !== combined?.id && <button className="secondary" disabled={!endpoint.canLaunch || Boolean(sftp)} onClick={() => setSftp(endpoint)}>Truyền tệp SFTP</button>}
           {admin && !endpoint.canLaunch && <button className="secondary" disabled={Boolean(granting)} onClick={() => void grantSelf(endpoint)}>
             {granting === endpoint.id ? 'Đang cấp…' : 'Cấp quyền cho tôi'}</button>}
           <button disabled={!endpoint.canLaunch || Boolean(busy) || (endpoint.protocol === 'ssh' ? Boolean(terminal) : Boolean(rdp))} onClick={() => void launch(endpoint)}>{busy === endpoint.id ? 'Đang mở…' : endpoint.protocol === 'rdp' ? 'Mở màn hình RDP' : 'Kết nối'}</button>
         </div></li>)}</ul>)}
-    {(terminal || sftp) && <div>
+    {terminal && <div>
       {combined && <SharedSshTerminal key={`shared:${combined.id}`} api={api} endpoint={combined} sessionId={sharedSessionId}
         connected={setSharedSessionId} close={closeSsh} openSftp={() => setFilePanel(showFiles ? 'hidden' : 'visible')}
         sftpVisible={showFiles} useNative={() => setNativeSsh(true)} />}
-      {terminal && nativeSsh && <SshTerminal key={`ssh:${terminal.id}`} api={api} endpoint={terminal} close={closeSsh} />}
+      {nativeSsh && <SshTerminal key={`ssh:${terminal.id}`} api={api} endpoint={terminal} close={closeSsh} />}
       {combined && sharedSessionId && filePanel !== 'closed' && <div className={layout.files} ref={fileWorkspace} hidden={!showFiles}>
         <SftpBrowser key={sharedSessionId} api={api} endpoint={combined} sharedSessionId={sharedSessionId} close={() => setFilePanel('hidden')} />
       </div>}
-      {sftp && <SftpBrowser key={sftp.id} api={api} endpoint={sftp} close={() => setSftp(undefined)} />}
     </div>}
     {rdp && <RdpDesktop key={`rdp:${rdp.id}`} api={api} endpoint={rdp} close={closeRdp} fixDefaultPort={admin ? () => useDefaultRdpPort(rdp) : undefined} />}
   </div>;

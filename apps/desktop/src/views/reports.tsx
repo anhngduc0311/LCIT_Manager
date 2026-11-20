@@ -12,7 +12,7 @@ import styles from './reports.module.css';
 const number = new Intl.NumberFormat('vi-VN');
 const date = new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short' });
 
-function Filters({ api, filter, change, reset, active, className = styles.filters, label = 'Bộ lọc báo cáo' }: {
+function Filters({ api, filter, change, reset, active, className = styles.filters, label = 'Bộ lọc danh sách ứng dụng' }: {
   api: RequestApi; filter: ReportFilter; change: (key: keyof ReportFilter, value: string) => void; reset: () => void; active: boolean;
   className?: string; label?: string;
 }) {
@@ -128,7 +128,7 @@ export function ReportsView({ api, open }: { api: RequestApi; open: (kind: Kind,
   const filters = useReportFilter();
   const { result, setPage, reload, exportExcel, exporting, error, notice } = useInventory(api, filters.filter);
   const data = result?.data;
-  return <section className="panel"><div className="section-title"><div><p className="eyebrow">BÁO CÁO</p><h1>Danh mục ứng dụng</h1>
+  return <section className="panel"><div className="section-title"><div><h1>Danh sách ứng dụng</h1>
     <p className="page-description">Tệp Excel dùng đúng bộ lọc và phạm vi đang hiển thị.</p></div>
     <div className="actions"><button className="secondary" onClick={reload}>Tải lại</button>
       {data?.canExport && <button disabled={exporting || data.total === 0} onClick={() => void exportExcel()}>
@@ -137,7 +137,7 @@ export function ReportsView({ api, open }: { api: RequestApi; open: (kind: Kind,
     {data && !data.canExport && <p className="muted">Bạn cần Quản trị cấp quyền “Xuất báo cáo” để tải tệp Excel.</p>}
     {(result?.error || error) && <p className="error" role="alert">{result?.error || error}</p>}
     {notice && <p role="status">{notice}</p>}
-    {!result && <p role="status">Đang tải báo cáo…</p>}
+    {!result && <p role="status">Đang tải danh sách ứng dụng…</p>}
     {data && <>{data.items.length === 0 ? <p className="empty">{data.total === 0 ? 'Không có ứng dụng phù hợp bộ lọc.' : 'Không có ứng dụng ở trang này.'}</p> : <div className={styles.tableWrap}>
       <table className={styles.table}><thead><tr><th>Ứng dụng</th><th>Đơn vị</th><th>Hình thức</th><th>Máy chủ</th><th>Tên miền</th></tr></thead>
         <tbody>{data.items.map((row) => <tr key={row.id}>
