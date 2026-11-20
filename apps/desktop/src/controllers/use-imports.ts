@@ -26,7 +26,6 @@ export function useImportWizard(api: RequestApi) {
   }
 
   const selectedSheet = batch?.sheets.find((item) => item.name === sheet);
-  const headers = selectedSheet?.sampleRows.find((row) => row.rowNumber === headerRow)?.cells ?? [];
   const missing = requiredFields.filter((field) => !columns[field]);
   const usedTwice = Object.values(columns).filter((column, index, all) => all.indexOf(column) !== index);
 
@@ -92,9 +91,20 @@ export function useImportWizard(api: RequestApi) {
   const counts = rows.reduce<Partial<Record<RowStatus, number>>>((all, row) => ({ ...all, [row.status]: (all[row.status] ?? 0) + 1 }), {});
   const step = !batch ? 0 : receipt ? 3 : preview ? 2 : 1;
 
+  function assignColumn(column: number, field?: ImportField) {
+    setColumns((current) => {
+      const next = { ...current };
+      for (const mappedField of Object.keys(next) as ImportField[]) {
+        if (next[mappedField] === column) delete next[mappedField];
+      }
+      if (field) next[field] = column;
+      return next;
+    });
+  }
+
   return {
-    step, batch, sheet, chooseSheet, selectedSheet, headerRow, setHeaderRow: (row: number) => chooseSheet(sheet, row), headers,
-    columns, setColumn: (field: ImportField, column: number | undefined) => setColumns((current) => ({ ...current, [field]: column })),
+    step, batch, sheet, chooseSheet, selectedSheet, headerRow, setHeaderRow: (row: number) => chooseSheet(sheet, row),
+    columns, assignColumn,
     missing, usedTwice, preview, rows, counts, selected, toggle, decide, statusFilter, setStatusFilter, receipt,
     upload, runPreview, confirm, reset, busy, error,
     backToMapping: () => setPreview(undefined),

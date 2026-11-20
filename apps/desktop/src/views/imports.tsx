@@ -9,6 +9,7 @@ import mapping from './import-mapping.module.css';
 import styles from './reports.module.css';
 
 const steps = ['Chọn tệp', 'Ánh xạ cột', 'Xem trước và chọn dòng', 'Kết quả'];
+const mappingFields = Object.entries(importFields) as [ImportField, string][];
 const statusBadge: Record<RowStatus, string> = {
   new: styles.badgeNotice, match: styles.badgeWarning, duplicate: styles.badgeNotice, conflict: styles.badgeCritical, error: styles.badgeCritical,
 };
@@ -30,11 +31,10 @@ export function ImportsView({ api, onBack }: { api: RequestApi; onBack?: () => v
   const { batch, busy, error, step } = wizard;
   const visible = wizard.rows.filter((row) => !wizard.statusFilter || row.status === wizard.statusFilter);
   const previewPage = useLocalPage(visible, 20);
-  const columnCount = Math.max(1, ...(wizard.selectedSheet?.sampleRows.map((row) => row.cells.length) ?? [1]));
-  const columnOptions = Array.from({ length: columnCount }, (_, index) => {
-    const header = wizard.headers[index];
-    return <option key={index + 1} value={index + 1}>Cột {columnLetter(index + 1)}{header ? ` · ${header}` : ''}</option>;
-  });
+  const sampleRows = wizard.selectedSheet?.sampleRows ?? [];
+  const columnCount = Math.max(1, ...sampleRows.map((row) => row.cells.length));
+  const sheetColumns = Array.from({ length: columnCount }, (_, index) => index + 1);
+  const fieldByColumn = new Map(mappingFields.map(([field]) => [wizard.columns[field], field]));
 
   function filterRows(status: RowStatus | '') {
     wizard.setStatusFilter(status);
@@ -75,24 +75,38 @@ export function ImportsView({ api, onBack }: { api: RequestApi; onBack?: () => v
       </header>
       <div className={mapping.body}>
         <div className={mapping.heading}>
-          <h2 id="import-mapping-title">Cột Excel cho từng trường</h2>
+          <h2 id="import-mapping-title">Xem trước trang tính</h2>
           <span className={mapping.progress}>Đã chọn {requiredFields.length - wizard.missing.length}/{requiredFields.length} trường bắt buộc</span>
         </div>
-        <div className={mapping.fields}>
-          {(Object.entries(importFields) as [ImportField, string][]).map(([field, label]) => {
-            const required = requiredFields.includes(field);
-            const column = wizard.columns[field];
-            const invalid = column === undefined ? required : wizard.usedTwice.includes(column);
-            return <label key={field} className={mapping.field}>
-              <span>{label}{required ? <span className={mapping.required} aria-hidden="true"> *</span> : <small className={mapping.optional}>Tùy chọn</small>}</span>
-              <select value={column ?? ''} required={required} aria-invalid={invalid || undefined} disabled={Boolean(busy)}
-                onChange={(event) => wizard.setColumn(field, event.target.value ? Number(event.target.value) : undefined)}>
-                <option value="">{required ? 'Chọn cột Excel' : 'Không dùng'}</option>
-                {columnOptions}
-              </select>
-            </label>;
-          })}
+        <div className={mapping.sheetPreview} tabIndex={0} role="region" aria-label="Bảng xem trước Excel">
+          <table>
+            <thead>
+              <tr><th scope="col">Dòng</th>{sheetColumns.map((column) => <th key={column} scope="col">{columnLetter(column)}</th>)}</tr>
+            </thead>
+            <tbody>
+              <tr className={mapping.assignment}>
+                <th scope="row">Ánh xạ</th>
+                {sheetColumns.map((column) => <td key={column}>
+                  <select aria-label={`Trường cho cột ${columnLetter(column)}`} value={fieldByColumn.get(column) ?? ''}
+                    aria-invalid={wizard.usedTwice.includes(column) || undefined} disabled={Boolean(busy)}
+                    onChange={(event) => wizard.assignColumn(column, (event.target.value || undefined) as ImportField | undefined)}>
+                    <option value="">Không dùng</option>
+                    {mappingFields.map(([field, label]) => {
+                      const current = wizard.columns[field];
+                      return <option key={field} value={field}>{label}{requiredFields.includes(field) ? ' *' : ''}
+                        {current && current !== column ? ` · Cột ${columnLetter(current)}` : ''}</option>;
+                    })}
+                  </select>
+                </td>)}
+              </tr>
+              {sampleRows.map((row) => <tr key={row.rowNumber} data-header={row.rowNumber === wizard.headerRow}>
+                <th scope="row" aria-label={row.rowNumber === wizard.headerRow ? `Dòng ${row.rowNumber}, dòng tiêu đề` : undefined}>{row.rowNumber}</th>
+                {sheetColumns.map((column) => <td key={column} title={row.cells[column - 1] ?? undefined}>{row.cells[column - 1]}</td>)}
+              </tr>)}
+            </tbody>
+          </table>
         </div>
+        {sampleRows.length > 0 && <p className={mapping.sampleNote}>Hiển thị {sampleRows.length}/{wizard.selectedSheet?.rowCount} dòng để ánh xạ cột.</p>}
       </div>
       <footer className={mapping.footer}>
         <div className={mapping.feedback} aria-live="polite">

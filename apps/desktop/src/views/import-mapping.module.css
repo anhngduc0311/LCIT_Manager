@@ -31,7 +31,7 @@
 }
 .fileLabel { display: block; color: var(--muted); font-size: .76rem; }
 .file strong { font-size: .95rem; }
-.sourceFields, .fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.sourceFields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .sourceFields { gap: .65rem; }
 .sourceFields label { color: #465971; font-size: .8rem; }
 .card select { font-size: .86rem; padding: .5rem .65rem; text-overflow: ellipsis; }
@@ -40,11 +40,19 @@
 .heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .4rem .8rem; margin-bottom: .95rem; }
 .heading h2 { font-size: 1rem; }
 .progress { color: #086976; background: #e8f5f4; border-radius: 6px; padding: .2rem .55rem; font-size: .76rem; font-weight: 600; }
-.fields { gap: .8rem 1.4rem; }
-.field { align-content: start; gap: .28rem; font-size: .84rem; }
-.field > span { overflow-wrap: anywhere; }
-.required { color: var(--error); }
-.optional { color: var(--muted); font-size: .72rem; font-weight: 400; margin-inline-start: .5rem; }
+.sheetPreview { overflow: auto; border: 1px solid #dce5ee; border-radius: 8px; }
+.sheetPreview table { width: 100%; border-spacing: 0; font-size: .83rem; }
+.sheetPreview :is(th, td) { padding: .48rem .65rem; border-inline-end: 1px solid #e2e9ee; border-bottom: 1px solid #e2e9ee; }
+.sheetPreview tr > :last-child { border-inline-end: 0; }
+.sheetPreview tbody tr:last-child > * { border-bottom: 0; }
+.sheetPreview th { text-align: center; font-weight: 650; color: #465971; background: #f0f4f7; }
+.sheetPreview tr > :first-child { position: sticky; inset-inline-start: 0; z-index: 1; white-space: nowrap; }
+.sheetPreview td { min-width: 10.5rem; max-width: 15rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sheetPreview tr[data-header='true'] > * { background: #e5f3ee; color: #215e49; font-weight: 650; }
+.assignment td { background: #f9fbfd; }
+.assignment select { padding: .38rem .45rem; font-size: .79rem; }
+.assignment select:focus-visible { outline-offset: 1px; }
+.sampleNote { margin-top: .5rem; color: var(--muted); font-size: .78rem; }
 
 .footer {
   display: flex;
@@ -63,7 +71,6 @@
 }
 
 @container import-mapping (max-width: 32rem) {
-  .fields { grid-template-columns: minmax(0, 1fr); }
   .footer { flex-direction: column; align-items: stretch; }
   .feedback:empty { display: none; }
 }

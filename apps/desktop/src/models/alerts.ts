@@ -44,9 +44,11 @@ export function describeAlert(alert: Alert) {
   if (alert.kind === 'expiry') {
     const what = alert.source === 'manual_domain' ? 'Tên miền' : 'Chứng thư SSL';
     const title = alert.thresholdDays === 0 ? `${what} đã quá hạn` : `${what} hết hạn trong ${alert.thresholdDays} ngày`;
-    return { title, body: `${alert.resourceLabel} · ${sourceText[alert.source]} · hạn ${date}` };
+    return { title, body: `${alert.resourceLabel} · ${sourceText[alert.source]} · hạn ${date}`,
+      context: [alert.resourceLabel, sourceText[alert.source], date && `Hạn ${date}`].filter(Boolean) };
   }
   const status = alert.check ? checkStatusText[alert.check.status] ?? alert.check.status : '';
   const title = alert.kind === 'outage' ? `${sourceText[alert.source]}: gián đoạn` : `${sourceText[alert.source]}: đã phục hồi`;
-  return { title, body: `${alert.resourceLabel}${status ? ` · ${status}` : ''}` };
+  return { title, body: `${alert.resourceLabel}${status ? ` · ${status}` : ''}`,
+    context: [alert.resourceLabel, status].filter(Boolean) };
 }
